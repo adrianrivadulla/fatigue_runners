@@ -2,6 +2,7 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
+      <module fileurl="file://$PROJECT_DIR$/../clustering_runners/.idea/clustering_runners.iml" filepath="$PROJECT_DIR$/../clustering_runners/.idea/clustering_runners.iml" />
       <module fileurl="file://$PROJECT_DIR$/../pythonProject/.idea/clustering_studies.iml" filepath="$PROJECT_DIR$/../pythonProject/.idea/clustering_studies.iml" />
       <module fileurl="file://$PROJECT_DIR$/.idea/fatiguing_study.iml" filepath="$PROJECT_DIR$/.idea/fatiguing_study.iml" />
     </modules>

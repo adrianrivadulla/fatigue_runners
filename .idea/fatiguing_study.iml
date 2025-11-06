@@ -5,6 +5,7 @@
     <orderEntry type="jdk" jdkName="PhDEnv2024please" jdkType="Python SDK" />
     <orderEntry type="sourceFolder" forTests="false" />
     <orderEntry type="module" module-name="clustering_studies" />
+    <orderEntry type="module" module-name="clustering_runners" />
   </component>
   <component name="PyDocumentationSettings">
     <option name="renderExternalDocumentation" value="true" />

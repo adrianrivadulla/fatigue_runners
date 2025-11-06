@@ -488,7 +488,7 @@ plt.style.use('default')
 projdir = '.'
 
 # Data dir
-datadir = os.path.join(projdir, 'Data')
+datadir = os.path.join(projdir, 'data')
 
 # Fatigure report dir
 reportdir = os.path.join(projdir, 'report')
@@ -817,7 +817,7 @@ for pt in pts:
 
 #%% Disc var analysis
 
-discsegfig, discsegaxs = plt.subplots(1, 2, figsize=(11, 3))
+discsegfig, discsegaxs = plt.subplots(1, 2, figsize=(11, 4))
 discsegaxs = discsegaxs.flatten()
 
 for vari, varname in enumerate(discvars):
