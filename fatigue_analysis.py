@@ -583,7 +583,7 @@ kinematics_titles = {'SFl': 'Stride frequency',
                       'RKNEE': 'Knee',
                       'RANK': 'Ankle'}
 
-kinematics_ylabels = {'SFl': 'Hz/leg',
+kinematics_ylabels = {'SFl': '1/ST/leg length',
                       'DF': 'CT/ST',
                       'RCOM': 'Position (m/leg) \n< Down - Up >',
                       'RTRUNK2PELVIS': '${\Theta}$ (°) \n< Flex - Ext >',
@@ -966,10 +966,10 @@ for vari, varname in enumerate(discvars):
     discsegaxs[vari].set_ylabel(kinematics_ylabels[varname])
 
     if stat_comparison['kinematics'][varname]['ANOVA2onerm']['p-unc'].loc[stat_comparison['kinematics'][varname]['ANOVA2onerm']['Source'] == 'segment'].values < 0.001:
-        strstats = (f'E: F = {np.round(stat_comparison["kinematics"][varname]["ANOVA2onerm"]["F"].values[1], 2)},'
+        strstats = (f'F = {np.round(stat_comparison["kinematics"][varname]["ANOVA2onerm"]["F"].values[1], 2)},'
                     f' p < 0.001')
     else:
-        strstats = (f'E: F = {np.round(stat_comparison["kinematics"][varname]["ANOVA2onerm"]["F"].values[1], 2)},'
+        strstats = (f'F = {np.round(stat_comparison["kinematics"][varname]["ANOVA2onerm"]["F"].values[1], 2)},'
                     f' p = {np.round(stat_comparison["kinematics"][varname]["ANOVA2onerm"]["p-unc"].values[1], 3)}')
 
     # Set title
