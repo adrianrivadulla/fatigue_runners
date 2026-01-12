@@ -1,5 +1,7 @@
 # Fatigue study
 
+[![DOI](https://zenodo.org/badge/302002826.svg)](https://doi.org/10.5281/zenodo.5532714)
+
 The scripts within this repo can replicate the analysis conducted for 
 
 Rivadulla, A. R., Sheehy, Z., Chen, X., Cazzola, D., Trewartha, G., & Preatoni, E. (2025). Does preferred technique influece how kinematics change during a run to exhaustion? - A cluster based approach. under review.
