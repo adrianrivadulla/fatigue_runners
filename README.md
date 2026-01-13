@@ -35,7 +35,7 @@ Navigate to the fatigue_runners directory and create a version environment with 
 
 ### Getting the data
 
-Download the dataset from https://researchdata.bath.ac.uk/1550/. Create a `data` directory by unzipping the dataset within the project root. The data should be structured as follows:
+Download the dataset from https://researchdata.bath.ac.uk/1550/. Create a `data` directory by unzipping the dataset within the project root. Please refer to the dataset description in the link for further details on how the data and files are structured.
 
 
 ### Usage
