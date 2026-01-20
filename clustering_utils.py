@@ -1101,76 +1101,78 @@ class TransitionAnalysisGUI:
 
 
 class CustomScaler(BaseEstimator, TransformerMixin):
+    """
+    Custom scaler for time series data that standardises data (z-score normalisation) based on average and std of the
+    entire curve. The class follows the structure of sklearn's TransformerMixin. Curves can be stacked horizontally in a data matrix,
+    with each column representing a time point. A vartracker list is used to track which columns correspond to which variables.
+    """
 
-    """
-    A custom scaler class for standardizing data based on variable-specific means and standard deviations.
-    It uses vartracker to know what columns belong to the same variable to calculate the mean and std for each variable.
-    This is useful when scaling e.g., time series.
-    """
+    def __init__(self):
+        self.vartracker_ = None
+        self.unique_vars_ = None
+        self.mean_ = None
+        self.std_ = None
 
     def fit(self, X, y=None, vartracker=None):
-
         """
         Fit the scaler to the data.
 
         Parameters:
-        X (np.ndarray): The data to fit.
-        y (None, optional): Ignored, present for compatibility. Defaults to None.
-        vartracker (list, optional): List of variable names corresponding to the columns in the data. Defaults to None.
+        X (np.ndarray): Data matrix to fit the scaler to.
+        y (np.ndarray): Optional target values (not used). Just here because of sklearn's TransformerMixin structure.
+        vartracker (list): List of variable names for each data instance. If None, the entire data are treated as a single variable.
 
         Returns:
-        self: Fitted scaler instance.
+        self: Fitted scaler object.
         """
 
-        self.vartracker_ = vartracker
-
         # Get vartracker
+        self.vartracker_ = vartracker
         if self.vartracker_ is None:
             self.mean_ = np.mean(X)
             self.std_ = np.std(X)
         else:
             self.vartracker_ = np.array(vartracker)
+            self.unique_vars_ = np.unique(self.vartracker_)
 
             # Get mean and std for each key in datadict
-            self.mean_ = {var: np.mean(X[:, np.where(self.vartracker_ == var)]) for var in np.unique(self.vartracker_)}
-            self.std_ = {var: np.std(X[:, np.where(self.vartracker_ == var)]) for var in np.unique(self.vartracker_)}
+            self.mean_ = {var: np.mean(X[:, self.vartracker_ == var]) for var in np.unique(self.vartracker_)}
+            self.std_ = {var: np.std(X[:, self.vartracker_ == var]) for var in np.unique(self.vartracker_)}
 
         return self
 
     def transform(self, X):
-
         """
         Transform the data using the fitted scaler.
 
         Parameters:
-        X (np.ndarray): The data to transform.
+        X (np.ndarray): Data matrix to transform.
 
         Returns:
-        np.ndarray: The standardized data.
+        Xz (np.ndarray): Standardised data matrix.
         """
 
         Xz = np.zeros(X.shape)
 
         # Standardise data
-        for var in np.unique(self.vartracker_):
-            Xz[:, np.where(self.vartracker_ == var)] = (X[:, np.where(self.vartracker_ == var)] - self.mean_[var]) / \
+        for var in self.unique_vars_:
+            Xz[:, self.vartracker_ == var] = (X[:, self.vartracker_ == var] - self.mean_[var]) / \
                                                        self.std_[var]
 
         return Xz
 
     def fit_transform(self, X, y=None, vartracker=None):
-
         """
-         Fit the scaler to the data and then transform it.
+        Fit the scaler to the data and transform it.
 
-         Parameters:
-         X (np.ndarray): The data to fit and transform.
-         y (None, optional): Ignored, present for compatibility. Defaults to None.
-         vartracker (list, optional): List of variable names corresponding to the columns in the data. Defaults to None.
+        Parameters:
+        X (np.ndarray): Data matrix to fit and transform.
+        y (np.ndarray): Optional target values (not used). Just here because of sklearn's TransformerMixin structure.
+        vartracker (list): List tracking the variable name for each data instance. If None, the entire data is treated as a single variable.
 
-         Returns:
-         np.ndarray: The standardized data.
-         """
+        Returns:
+        Xz (np.ndarray): Standardised data matrix.
+        """
 
         self.fit(X, y, vartracker)
         Xz = self.transform(X)
@@ -1178,27 +1180,25 @@ class CustomScaler(BaseEstimator, TransformerMixin):
         return Xz
 
     def inverse_transform(self, Xz, y=None):
-
         """
-        Inverse transform the standardized data back to the original scale.
+        Inverse transform the standardised data back to the original scale.
 
         Parameters:
-        Xz (np.ndarray): The standardized data to inverse transform.
-        y (None, optional): Ignored, present for compatibility. Defaults to None.
+        Xz (np.ndarray): Standardised data matrix to inverse transform.
+        y (np.ndarray): Optional target values (not used). Just here because of sklearn's TransformerMixin structure.
 
         Returns:
-        np.ndarray: The data in the original scale.
+        X (np.ndarray): Data matrix in the original scale.
         """
 
         X = np.zeros(Xz.shape)
 
         # Standardise data
-        for var in np.unique(self.vartracker_):
-            X[:, np.where(self.vartracker_ == var)] = Xz[:, np.where(self.vartracker_ == var)] * self.std_[var] + \
+        for var in self.unique_vars_:
+            X[:, self.vartracker_ == var] = Xz[:, self.vartracker_ == var] * self.std_[var] + \
                                                        self.mean_[var]
 
         return X
-
 
 def make_splitgrid(nrows, ncols=None, figsize=(19.2, 9.77)):
 
