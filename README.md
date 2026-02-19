@@ -58,6 +58,11 @@ There might be some seaborn, matplotlib or pandas warnings, but they can be igno
 
 Documentation for the different scripts and functions has been generated using Copilot and it can be brief in some cases but hopefully enough to understand what is happening. 
 
+## Refactoring and future work
+
+This repo was a bit of a file dump from all the code I used for this study. 
+I am in the middle of refactoring the code to make it modular, reduce clutter, and improve clarity.
+
 ## License
 
 Copyright (c) 2025 Adrian R Rivadulla
