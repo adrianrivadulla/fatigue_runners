@@ -3,7 +3,17 @@
 Look at the kinematics and physiology data from the fatiguing session.
 @author: arr43
 """
+
+# TODO. Start moving functions to research_utils and utils.analysis
+# TODO. All functions in red are currently in clustering utils. once you move them to research_utils,
+# TODO. clustering utils can be wiped from here
+
+
+
 # %% Imports
+import config
+from utils.data_processing import prep_mastersheet, prep_physdata
+from utils.vis import visualise_gas_data
 from itertools import combinations
 import copy
 import natsort
@@ -31,8 +41,9 @@ import seaborn as sns
 from scipy.interpolate import interp1d
 import matplotlib.cm as cm
 from matplotlib.colors import LinearSegmentedColormap
-from clustering_utils import *
-
+# from clustering_utils import *
+from utils.analysis import calculate_coordvar
+from research_utils.statistics import demoanthrophys_analysis
 
 # %% Utils
 
@@ -427,346 +438,94 @@ def SPM_ANOVA2onerm(datadict, designdict, figargs, rmlabels=None):
     return stat_comparison
 
 
-def calculate_coordvar(prox, dist, p=0.95):
-    """
-    Calculate coordination variability between two signals using method... TODO.
-    """
-
-    cv = np.ones(prox.shape[1]) * np.nan
-
-    for t, (prox_at_t, dist_at_t) in enumerate(zip(prox.T, dist.T)):
-
-        # Calculate covariance
-        cov = np.cov(prox_at_t, dist_at_t)
-
-        # Get eigenvals and vectors
-        eigvals, eigvecs = np.linalg.eig(cov)
-
-        k = np.sqrt(-2 * np.log(1 - p))
-        scaledeig = k * np.sqrt(eigvals)
-        area = np.pi * np.prod(scaledeig)
-
-        cv[t] = area
-
-    return cv
-
-
-def truncate_colormap(cmap_name, minval=0.2, maxval=1.0, n=100):
-    """Returns a truncated colormap between minval and maxval"""
-    cmap = cm.get_cmap(cmap_name)
-    new_cmap = LinearSegmentedColormap.from_list(
-        f'trunc({cmap_name},{minval:.2f},{maxval:.2f})',
-        cmap(np.linspace(minval, maxval, n))
-    )
-    return new_cmap
-
-def idx_py2xcl(pyrow, pycol):
-    # Convert python indices to excel indices
-    xclrow = pyrow + 1
-    xclcol = pycol + 1
-
-    # Convert excel column index to letter
-    start_index = 1
-    letter = ''
-    while xclcol > 25 + start_index:
-        letter += chr(65 + int((xclcol - start_index) / 26) - 1)
-        column_int = xclcol - (int((xclcol - start_index) / 26)) * 26
-    letter += chr(65 - start_index + (int(xclcol)))
-
-    return f'{letter}{xclrow}'
-
-
 # %% Default
-
-# matplotlib backend
-matplotlib.use('Qt5Agg')
-
-# matplotlib style
-plt.style.use('default')
-
-# Project directory
-projdir = '.'
-
-# Data dir
-datadir = os.path.join(projdir, 'data')
-
-# Fatigure report dir
-reportdir = os.path.join(projdir, 'report')
-
-# Path to fatigue data file
-datapath = os.path.join(datadir, 'Sess2_kinematics_data.npy')
-
-# Path to clustering labels
-clustlabelspath = os.path.join(datadir, 'Clust_multispeed_ptlabels.csv')
-
-# Master datasheet
-masterdatapath = os.path.join(datadir, 'MasterDataSheet.xlsx')
-
-# Physiological data
-physdatapath = os.path.join(datadir, 'Sess2_physio_data.npy')
-
-# Matplotlib style
-matplotlib.use('Qt5Agg')
-matplotlib.style.use('default')
-
-# Update default rcParams
-plt.rcParams['axes.spines.top'] = False
-plt.rcParams['axes.spines.right'] = False
 
 # Saving kword
 savingkw = 'Fatigue'
 
+# %% Data arranging
+
+# Load biomechanical data
+segments = np.load(config.datapath, allow_pickle=True).item()
+pts = np.unique(segments['misc']['pt'])
+
 # Load physiological data
-physdata = np.load(physdatapath, allow_pickle=True).item()
+physdata = prep_physdata(config.physdatapath, wantedsignals=['smooth'], wantedpts=pts)
 
 # Load mastersheet
-master = pd.read_excel(masterdatapath, index_col=1, header=1)
+master = prep_mastersheet(config.masterdatapath)
+master = master.loc[pts]
+
+# Load clustlabels
+clustlabels = pd.read_csv(config.clustlabelspath, index_col='ptcode')
+uniqueclustlabels = clustlabels.groupby('clustlabel', as_index=False)['colourcode'].first()
+
+# Keep only pts in mastersheet that are in clustlabels
+master = master.join(clustlabels, how='inner')
+
+# Session 2 times to seconds and measure covered distance
+master['Sess2_times'] = master['Sess2_time'].apply(lambda x: x.hour * 3600 + x.minute * 60 + x.second)
+speedms = (master['LT'] + 0.05 * master['LT']) * 1000 / 3600
+master['Sess2_dist'] = speedms * master['Sess2_times']
 
 # Speeds
 speeds = [11, 12, 13]
 
-gasvars = {'VO2': '%VO2peak',
-           'RQ': 'VCO2/VO2',
-           'Rf': 'breaths/min',
-           'VT': 'l'}
+# Get unique clustlabels and corresponding colour TODO. Can be deleted once you finish placing the colours where they need to be
+# uniqclustlabels = natsort.natsorted(np.unique(clustlabels['clustlabel']))
+# uniqclustcolours = [clustlabels['colourcode'].loc[
+#                         clustlabels['clustlabel'] == x].iloc[0] for x in uniqclustlabels]
 
-gasvar_titles = {'VO2': 'VO2',
-                 'RQ': 'Respiratory quotient',
-                 'Rf': 'Respiratory frequency',
-                 'VT': 'Tidal volume'}
 
-# Have VO2max called VO2maxkg for simplicity
-master['VO2peakkg'] = master['VO2max']
 
-# EE is in kcal/min, convert to kcal/km and normalise both by mass
-for speed in speeds:
-
-    master[f'EE{speed}kg'] = master[f'EE{speed}'] / master['Mass']
-    master[f'EE{speed}km'] = master[f'EE{speed}'] * 60 / speed
-    master[f'EE{speed}kmkg'] = master[f'EE{speed}km'] / master['Mass']
-    master[f'LT{speed}pctge'] = speed / master['LT'] * 100
-
-# Get 10k times which are datetime.time in seconds
-master['Time10Ks'] = master['Time10K'].apply(lambda x: x.hour * 3600 + x.minute * 60 + x.second)
-
-# Get clustering labels
-clustlabels = pd.read_csv(clustlabelspath)
-
-# Get unique clustlabels and corresponding colour
-uniqclustlabels = natsort.natsorted(np.unique(clustlabels['clustlabel']))
-uniqclustcolours = [clustlabels['colourcode'].loc[
-                        clustlabels['clustlabel'] == x].iloc[0] for x in uniqclustlabels]
-
-# Seglabels
-seglabels = ['start', 'mid', 'end']
-
-# discvars
-discvars = ['DF', 'SFl']
-
-# contvars
-contvars = ['RCOM', 'RTRUNK2PELVIS', 'RPELV_ANG', 'RHIP', 'RKNEE', 'RANK']
-
-# wanted vars
-wantedvars = discvars + contvars
-
-# coordination couplings
-couplings = [('RTRUNK2PELVIS_VEL', 'RHIP_VEL'),
-             ('RHIP_VEL', 'RKNEE_VEL'),
-             ('RKNEE_VEL', 'RANK_VEL')]
-
-kinematics_titles = {'SFl': 'Stride frequency',
-                      'DF': 'Duty factor',
-                      'RCOM': 'vCOM',
-                      'RTRUNK2PELVIS': 'Trunk-pelvis',
-                      'RHIP': 'Hip',
-                      'RPELV_ANG': 'Pelvis tilt',
-                      'RKNEE': 'Knee',
-                      'RANK': 'Ankle'}
-
-kinematics_ylabels = {'SFl': '1/ST/leg length',
-                      'DF': 'CT/ST',
-                      'RCOM': 'Position (m/leg) \n< Down - Up >',
-                      'RTRUNK2PELVIS': '${\Theta}$ (°) \n< Flex - Ext >',
-                      'RPELV_ANG': '${\Theta}$ (°) \n< Ant - Post >',
-                      'RHIP': '${\Theta}$ (°) \n< Ext - Flex >',
-                      'RKNEE': '${\Theta}$ (°) \n< Ext - Flex >',
-                      'RANK': '${\Theta}$ (°) \n< Plantar - Dorsi >',
-                      }
-
-coord_titles = {'RTRUNK2PELVIS_VEL__RHIP_VEL': 'Trunk-pelvis ${\omega}$ \u2014 Hip ${\omega}$',
-                'RHIP_VEL__RKNEE_VEL':'Hip ${\omega}$ \u2014 Knee ${\omega}$',
-                'RKNEE_VEL__RANK_VEL':'Knee ${\omega}$ \u2014 Ankle ${\omega}$'}
-
-coord_labels = {'RTRUNK2PELVIS_VEL__RHIP_VEL': 'Ellipse area (°²/s²)',
-                'RHIP_VEL__RKNEE_VEL': 'Ellipse area (°²/s²)',
-                'RKNEE_VEL__RANK_VEL': 'Ellipse area (°²/s²)'}
-
-omega_labels = {'RTRUNK2PELVIS_VEL': '${\omega$ (°/s) \n< Flex - Ext >',
-                'RHIP_VEL': '${\omega$ (°/s) \n< Ext - Flex >',
-                'RKNEE_VEL': '${\omega$ (°/s) \n< Ext - Flex >',
-                'RANK_VEL': '${\omega$ (°/s) \n< Plantar - Dorsi >',
-                }
-
-# Demographics, anthropometrics and physiological variables and titles
-demoanthrophysvars_titles = {'Age': 'Age',
-                             'Height': 'Height',
-                             'Mass': 'Mass',
-                             'TrunkLgth': 'Trunk length',
-                             'PelvWidth': 'Pelvis width',
-                             'LegLgth_r': 'Leg length',
-                             'ThiLgth_r': 'Thigh length',
-                             'ShaLgth_r': 'Shank length',
-                             'FootLgth_r': 'Foot length',
-                             'LT': 'LT',
-                             'VO2peakkg': 'VO2peak',
-                             'RE': 'Running Economy',
-                             'RELT': 'Running Economy LT',
-                             'RunningDaysAWeek': 'Weekly runs',
-                             'KmAWeek': 'Weekly volume',
-                             'Time10Ks': '10k time',
-                             'Sess2_times': 'Time to exhaustion'
-                            }
-
-# Names and units for figures
-demoanthrophysvars_ylabels = {'Sex': 'Females (%)',
-                          'Age': 'years',
-                          'Height': 'm',
-                          'Mass': 'kg',
-                          'TrunkLgth': 'm',
-                          'LegLgth_r': 'm',
-                          'PelvWidth': 'm',
-                          'ThiLgth_r': 'm',
-                          'ShaLgth_r': 'm',
-                          'FootLgth_r': 'm',
-                          'LT': 'km/h',
-                          'VO2peakkg': 'ml/min/kg',
-                          'RunningDaysAWeek': 'count',
-                          'KmAWeek': 'km',
-                          'Time10Ks': 'mm:ss',
-                          'Sess2_times': 'mm:ss',
-                          'RE': 'kcal/min/kg',
-                          }
-
-# Segment colours
-segcolours = ['C0', 'C8', 'C3']
-
-#%% Load data
-segments = np.load(datapath, allow_pickle=True).item()
-
-# Get participants
-pts = np.unique(segments['misc']['pt'])
 
 stat_comparison = {'demoanthrophys': {}, 'kinematics': {}, 'cv': {}}
 
 
 #%% Demoanthrophys comparisons
 
-# Mastersheet with only selected pts and cluster labels
-selmaster = master.loc[pts]
-
+# TODO. SEE WHAT YOU DO WITH ALL THESE PRINTS
 # Print avge and std temperature and humidity for Sess2
-print(f'Avge temp: {np.mean(selmaster["Sess2_Temperature"])}C, std: {np.std(selmaster["Sess2_Temperature"])}C')
-print(f'Avge humidity: {np.mean(selmaster["Sess2_Humidity"])}%, std: {np.std(selmaster["Sess2_Humidity"])}%')
-
-selmaster['clustlabel'] = 9
-for pt in pts:
-    print(pt)
-    try:
-        selmaster['clustlabel'].loc[pt] = clustlabels['clustlabel'].loc[clustlabels['ptcode'] == pt].values[0]
-    except:
-        print(f'{pt} not found in clustering labels')
-
-# Drop rows with clustlabel = 9
-selmaster = selmaster[selmaster['clustlabel'] != 9]
-
-# Sess2_time to seconds
-selmaster['Sess2_times'] = selmaster['Sess2_time'].apply(lambda x: x.hour * 3600 + x.minute * 60 + x.second)
-
-# Set figargs
-figargs = {'reportdir': reportdir,
-           'savingkw': savingkw,
-           'demoanthrophysvars_titles': demoanthrophysvars_titles,
-           'demoanthrophysvars_ylabels': demoanthrophysvars_ylabels,
-           'grouplabels': uniqclustlabels,
-           'groupcolours': uniqclustcolours,
-           'custom_groupnames': ['Neutral', 'Tilted']}
-
-stat_comparison['demoanthrophys'] = demoanthrophys_analysis(selmaster, 'clustlabel', speeds, figargs)
-
-
-#%% Physiological data plots
-
-# gasfig, gasaxs = plt.subplots(2, 2, figsize=(11, 4.5))
-# gasaxs = gasaxs.flatten()
-
-gasdatanorm = {gasvar: [] for gasvar in gasvars.keys()}
-
-# Plot physiological data
-for ptsi, pt in enumerate(pts):
-    for vari, var in enumerate(gasvars.keys()):
-
-        # t normalise data 0-101
-        interpolator = interp1d(np.linspace(0, 1, len(physdata['smooth'][pt][var])), physdata['smooth'][pt][var])
-        gasdatanorm[var].append(interpolator(np.linspace(0, 1, 101)))
-
-        if var == 'VO2':
-
-            # Normalise by bodymass
-            gasdatanorm[var][-1] = gasdatanorm[var][-1] / selmaster['Mass'].loc[pt]
-
-            # Express as pctge of VO2max
-            gasdatanorm[var][-1] = gasdatanorm[var][-1] / selmaster['VO2peakkg'].loc[pt] * 100
-
-        # gasaxs[vari].plot(physdata['smooth'][pt][var], color=uniqclustcolours[selmaster['clustlabel'].loc[pt]])
-
-        # if ptsi == 0:
-        #     gasaxs[vari].set_title(gasvar_titles[var])
-
-# Concatenate physdatanorm into numpy array
-physdatanorm = {gasvar: np.array(gasdatanorm[gasvar]) for gasvar in gasvars.keys()}
-
-# Plot time normalised data using plot_mean_std
-physnormfig, physnormaxs = plt.subplots(2, 2, figsize=(11, 4.5))
-physnormaxs = physnormaxs.flatten()
-
-for vari, var in enumerate(gasvars.keys()):
-    spm1d.plot.plot_mean_sd(physdatanorm[var], ax=physnormaxs[vari])
-    physnormaxs[vari].set_title(gasvar_titles[var])
-    physnormaxs[vari].set_xlabel('Time (%)', fontsize=10)
-    physnormaxs[vari].set_ylabel(gasvars[var])
-
-# Save and close
-plt.tight_layout()
-physnormfig.savefig(os.path.join(reportdir, f'{savingkw}_gasdata_norm.png'), dpi=300, bbox_inches='tight')
-plt.close(physnormfig)
+print(f'Avge temp: {np.mean(master["Sess2_Temperature"])}C, std: {np.std(master["Sess2_Temperature"])}C')
+print(f'Avge humidity: {np.mean(master["Sess2_Humidity"])}%, std: {np.std(master["Sess2_Humidity"])}%')
 
 # Report mean and std La
-print(f'Mean La: {np.nanmean(selmaster["Sess2_La"])}')
-print(f'Std La: {np.nanstd(selmaster["Sess2_La"])}')
+print(f'Mean La: {np.nanmean(master["Sess2_La"])}')
+print(f'Std La: {np.nanstd(master["Sess2_La"])}')
 
 # Report median RPE and interquartile range
-print(f'Median RPE: {np.nanmedian(selmaster["Sess2_RPE"])}')
-print(f'IQR RPE: {np.nanpercentile(selmaster["Sess2_RPE"], 75) - np.nanpercentile(selmaster["Sess2_RPE"], 25)}')
-
-#%% Time to exhaustion correlations
+print(f'Median RPE: {np.nanmedian(master["Sess2_RPE"])}')
+print(f'IQR RPE: {np.nanpercentile(master["Sess2_RPE"], 75) - np.nanpercentile(master["Sess2_RPE"], 25)}')
 
 # Get 5 and 95 percentiles of sess2_time
-time5pctile = np.nanpercentile(selmaster['Sess2_times'], 5)
-time95pctile = np.nanpercentile(selmaster['Sess2_times'], 95)
+time5pctile = np.nanpercentile(master['Sess2_times'], 5)
+time95pctile = np.nanpercentile(master['Sess2_times'], 95)
 
 # prin them as mm:ss
 print(f'5th percentile: {str(datetime.timedelta(seconds=time5pctile))}')
 print(f'95th percentile: {str(datetime.timedelta(seconds=time95pctile))}')
 
-# Measured covered distance
-# Get speed they ran at in m/s
-speedms = (selmaster['LT'] + 0.05 * selmaster['LT']) * 1000 / 3600
+# Set figargs
+figargs = {'reportdir': config.reportdir,
+           'savingkw': savingkw,
+           'demoanthrophysvars_titles': config.demoanthrophysvars_titles,
+           'demoanthrophysvars_ylabels': config.demoanthrophysvars_ylabels,
+           'grouplabels': uniqueclustlabels['clustlabel'].tolist(),
+           'groupcolours': uniqueclustlabels['colourcode'].tolist(),
+           'custom_groupnames': ['Neutral', 'Tilted'],
+           'savingkw': savingkw}
 
-# Calculate covered distance based on Sess2_times
-selmaster['Sess2_dist'] = speedms * selmaster['Sess2_times']
+# TODO. potentially rename to compare_demoanthrophys
+stat_comparison['demoanthrophys'] = demoanthrophys_analysis(master, 'clustlabel', speeds, figargs)
 
 
-#%% Kinematics
+#%% Gas data visualisation
+
+gasfig = visualise_gas_data(physdata, master, config.wantedgasvars, config.gas_titles, config.gas_ylabels)
+gasfig.savefig(os.path.join(config.reportdir, f'{savingkw}_gasdata_norm.png'), dpi=300, bbox_inches='tight')
+plt.close(gasfig)
+
+#%% Kinematics TODO. YOU ARE HERE
 
 # Preallocate data holders
 rowsn = len(pts) * len(seglabels)
