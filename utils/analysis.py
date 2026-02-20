@@ -1,5 +1,5 @@
 import numpy as np
-
+from scipy.interpolate import interp1d
 
 # %% Functions
 
@@ -25,3 +25,24 @@ def calculate_coordvar(prox, dist, p=0.95):
         cv[t] = area
 
     return cv
+
+def interpolate_dict(data, new_length=101):
+    """
+    Interpolate data in a dictionary to a new length.
+
+    Parameters:
+    data (dict): Dictionary containing data for each participant and variable. [participant][variable] = array of data
+    new_length (int): New length to interpolate to.
+
+    Returns:
+    dict: Dictionary containing interpolated data for each participant and variable. [variable] = array of interpolated data
+    """
+
+    datanorm = {var: np.full((len(data.keys()), new_length), np.nan) for var in data[list(data.keys())[0]]}
+
+    for pti, pt in enumerate(data.keys()):
+        for vari, var in enumerate(data[pt].keys()):
+            interpolator = interp1d(np.linspace(0, 1, len(data[pt][var])), data[pt][var])
+            datanorm[var][pti, :] = interpolator(np.linspace(0, 1, new_length))
+
+    return datanorm

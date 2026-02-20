@@ -13,6 +13,7 @@ Look at the kinematics and physiology data from the fatiguing session.
 # %% Imports
 import config
 from utils.data_processing import prep_mastersheet, prep_physdata
+from utils.analysis import interpolate_dict
 from utils.vis import visualise_gas_data
 from itertools import combinations
 import copy
@@ -61,8 +62,6 @@ def SPM_ANOVA2onerm(datadict, designdict, figargs, rmlabels=None):
     vlinevar = figargs['vlinevar']
     vartitles = figargs['vartitles']
     varkw = figargs['varkw']
-
-
 
     # Labels of repeated measures factor
     if rmlabels is None:
@@ -449,9 +448,6 @@ savingkw = 'Fatigue'
 segments = np.load(config.datapath, allow_pickle=True).item()
 pts = np.unique(segments['misc']['pt'])
 
-# Load physiological data
-physdata = prep_physdata(config.physdatapath, wantedsignals=['smooth'], wantedpts=pts)
-
 # Load mastersheet
 master = prep_mastersheet(config.masterdatapath)
 master = master.loc[pts]
@@ -468,6 +464,15 @@ master['Sess2_times'] = master['Sess2_time'].apply(lambda x: x.hour * 3600 + x.m
 speedms = (master['LT'] + 0.05 * master['LT']) * 1000 / 3600
 master['Sess2_dist'] = speedms * master['Sess2_times']
 
+# Load physiological data
+physdata = prep_physdata(config.physdatapath, wantedsignals=['smooth'], wantedpts=pts)
+normphysdata = interpolate_dict(physdata['smooth'], new_length=101)
+
+# Normalise VO by VO2peakkg to get relative VO and express it as a percentage of VO2peak
+assert list(physdata['smooth'].keys()) == list(master.index), 'Participants in physdata and master do not match'
+normphysdata['VO2'] /= np.reshape(master['Mass'].values, (len(master), 1))
+normphysdata['VO2'] = normphysdata['VO2'] / np.reshape(master['VO2peakkg'].values, (len(master), 1)) * 100
+
 # Speeds
 speeds = [11, 12, 13]
 
@@ -476,10 +481,14 @@ speeds = [11, 12, 13]
 # uniqclustcolours = [clustlabels['colourcode'].loc[
 #                         clustlabels['clustlabel'] == x].iloc[0] for x in uniqclustlabels]
 
-
-
-
 stat_comparison = {'demoanthrophys': {}, 'kinematics': {}, 'cv': {}}
+
+
+#%% Gas data visualisation
+
+gasfig = visualise_gas_data(normphysdata, config.wantedgasvars, config.gas_titles, config.gas_ylabels)
+gasfig.savefig(os.path.join(config.reportdir, f'{savingkw}_gasdata_norm.png'), dpi=300, bbox_inches='tight')
+plt.close(gasfig)
 
 
 #%% Demoanthrophys comparisons
@@ -517,13 +526,6 @@ figargs = {'reportdir': config.reportdir,
 
 # TODO. potentially rename to compare_demoanthrophys
 stat_comparison['demoanthrophys'] = demoanthrophys_analysis(master, 'clustlabel', speeds, figargs)
-
-
-#%% Gas data visualisation
-
-gasfig = visualise_gas_data(physdata, master, config.wantedgasvars, config.gas_titles, config.gas_ylabels)
-gasfig.savefig(os.path.join(config.reportdir, f'{savingkw}_gasdata_norm.png'), dpi=300, bbox_inches='tight')
-plt.close(gasfig)
 
 #%% Kinematics TODO. YOU ARE HERE
 
