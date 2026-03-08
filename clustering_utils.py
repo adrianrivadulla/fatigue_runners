@@ -471,7 +471,7 @@ def write_0Dposthoc_statstr(posthoctable, contrastvalue, withinfactor, withinfac
     return f't = {t}, p = {p}, d = {d}[{np.round(ci[0],2)}, {np.round(ci[1],2)}]'
 
 
-def write_0DmixedANOVA_statstr(mixed_anovatable, between='', within='', betweenlabel='', withinlabel=''):
+def write_0DmixedANOVA_statstr(mixed_anovatable, between='', within='', betweenlabel='', withinlabel='', write_between=True, write_within=True, write_interaction=True):
 
     """
     Write a formatted string summarizing the results of a mixed ANOVA with one between-subjects factor and
@@ -495,27 +495,31 @@ def write_0DmixedANOVA_statstr(mixed_anovatable, between='', within='', betweenl
     if withinlabel == '':
         withinlabel = within
 
-    if mixed_anovatable['p-unc'].loc[mixed_anovatable['Source'] == between].values < 0.001:
-        statstr = f'{betweenlabel}: F = {np.round(mixed_anovatable["F"].values[0], 2)}, p < 0.001'
-    else:
-        statstr = (f'{betweenlabel}: F = {np.round(mixed_anovatable["F"].values[0], 2)}, '
-                   f'p = {np.round(mixed_anovatable["p-unc"].values[0], 3)}')
+    statstr = ''
 
-    if mixed_anovatable['p-unc'].loc[mixed_anovatable['Source'] == 'speed'].values < 0.001:
-        statstr += f'; {withinlabel}: F = {np.round(mixed_anovatable["F"].values[1], 2)}, p < 0.001'
-    else:
-        statstr += (f'; {withinlabel}: F = {np.round(mixed_anovatable["F"].values[1], 2)}, '
-                    f'p = {np.round(mixed_anovatable["p-unc"].values[1], 3)}')
+    if write_between:
+        if mixed_anovatable['p-unc'].loc[mixed_anovatable['Source'] == between].values < 0.001:
+            statstr += f'{betweenlabel}: F = {np.round(mixed_anovatable["F"].values[0], 2)}, p < 0.001'
+        else:
+            statstr += (f'{betweenlabel}: F = {np.round(mixed_anovatable["F"].values[0], 2)}, '
+                       f'p = {np.round(mixed_anovatable["p-unc"].values[0], 3)}')
 
-    if mixed_anovatable['p-unc'].loc[mixed_anovatable['Source'] == 'Interaction'].values < 0.001:
-        statstr += (f'; {betweenlabel}x{withinlabel}: F = {np.round(mixed_anovatable["F"].values[2], 2)}, '
-                    f'p < 0.001')
-    else:
-        statstr += (f'; {betweenlabel}x{withinlabel}: F = {np.round(mixed_anovatable["F"].values[2], 2)}, '
-                    f'p = {np.round(mixed_anovatable["p-unc"].values[2], 2)}')
+    if write_within:
+        if mixed_anovatable['p-unc'].loc[mixed_anovatable['Source'] == within].values < 0.001:
+            statstr += f'; {withinlabel}: F = {np.round(mixed_anovatable["F"].values[1], 2)}, p < 0.001'
+        else:
+            statstr += (f'; {withinlabel}: F = {np.round(mixed_anovatable["F"].values[1], 2)}, '
+                        f'p = {np.round(mixed_anovatable["p-unc"].values[1], 3)}')
+
+    if write_interaction:
+        if mixed_anovatable['p-unc'].loc[mixed_anovatable['Source'] == 'Interaction'].values < 0.001:
+            statstr += (f'; {betweenlabel}x{withinlabel}: F = {np.round(mixed_anovatable["F"].values[2], 2)}, '
+                        f'p < 0.001')
+        else:
+            statstr += (f'; {betweenlabel}x{withinlabel}: F = {np.round(mixed_anovatable["F"].values[2], 2)}, '
+                        f'p = {np.round(mixed_anovatable["p-unc"].values[2], 2)}')
 
     return statstr
-
 
 def demoanthrophys_analysis(datasheet, groupvarname, respeeds, figargs):
     """

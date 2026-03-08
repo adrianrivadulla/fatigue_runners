@@ -1,8 +1,10 @@
 import pandas as pd
 import numpy as np
+from utils.analysis import calculate_coordvar
 
 # %% Functions
 
+# TODO. Write proper docstrings
 
 def prep_mastersheet(mastersheetpath, selectedidcs=None):
     """
@@ -35,7 +37,8 @@ def prep_mastersheet(mastersheetpath, selectedidcs=None):
 
     return master
 
-def prep_physdata(physdatapath, wantedsignals='all', wantedpts='all'):
+
+def prep_phys_data(physdatapath, wantedsignals='all', wantedpts='all'):
     """
 
     """
@@ -59,3 +62,73 @@ def prep_physdata(physdatapath, wantedsignals='all', wantedpts='all'):
                     data[key].pop(pt)
 
     return data
+
+
+def prep_kinematic_data(segments, pts, clustlabels, seglabels, couplings):
+    """
+    Prepares kinematic data for SPM analysis by calculating the average segment values for each participant.
+
+    Paremeters:
+    segments (dict): dictionary containing the kinematic data for each participant and segment.
+    pts (list): list of participant IDs to include in the analysis.
+    clustlabels (pd.DataFrame): dataframe containing the cluster labels for each participant.
+    seglabels (list): list of segment labels to include in the analysis.
+    couplings (list of tuples): list of tuples containing the names of the proximal and distal variables to calculate coordination variability for.
+     Each tuple should be in the format (proximal_variable_name, distal_variable_name).
+
+    Returns:
+    avgesegments (dict): dictionary containing the average segment values for each participant and segment.
+    cv (dict): dictionary containing the coordination variability values for each participant and segment for each coupling.
+    designfactors (dict): dictionary containing the design factors for each participant and segment, including participant IDs, segment labels, and cluster labels.
+    """
+
+
+    # Preallocate data holders
+    rowsn = len(pts) * len(seglabels)
+    designfactors = {'ptids': np.empty(rowsn, dtype=object),
+                     'rm': np.empty(rowsn, dtype=object),
+                     'group': np.empty(rowsn, dtype=int)}
+    cv = {f'{coupling[0]}__{coupling[1]}': np.ones((rowsn, segments['vars'][coupling[0]]['linreg'].shape[1])) * np.nan for coupling in couplings}
+
+    avgesegments = {}
+    for kinvar in segments['vars'].keys():
+        if isinstance(segments['vars'][kinvar], np.ndarray):
+            avgesegments[kinvar] = np.ones((rowsn)) * np.nan
+        else:
+            avgesegments[kinvar] = np.ones((rowsn, segments['vars'][kinvar]['linreg'].shape[1])) * np.nan
+
+    rowi = 0
+
+    for pt in pts:
+
+        # Get indices of pt and segment
+        ptstartsegidcs = np.where((segments['misc']['pt'] == pt) & (segments['misc']['segment'] == 'start'))[0]
+
+        # Store every segment data in an easy format for SPM analysis
+        for seg in seglabels:
+            ptsegidcs = np.where((segments['misc']['pt'] == pt) & (segments['misc']['segment'] == seg))[0]
+
+            for kinvar in segments['vars'].keys():
+                if isinstance(segments['vars'][kinvar], np.ndarray):
+                    avgesegments[kinvar][rowi] = np.mean(segments['vars'][kinvar][ptsegidcs], axis=0)
+                elif isinstance(segments['vars'][kinvar], dict):
+                    avgesegments[kinvar][rowi, :] = np.mean(segments['vars'][kinvar]['linreg'][ptsegidcs, :], axis=0)
+
+            # Calculate coordination variability
+            for coupling in couplings:
+                couplingname = f'{coupling[0]}__{coupling[1]}'
+                prox = segments['vars'][coupling[0]]['linreg'][ptsegidcs, :]
+                dist = segments['vars'][coupling[1]]['linreg'][ptsegidcs, :]
+                cv[couplingname][rowi, :] = calculate_coordvar(prox, dist)
+
+            # Store segment label
+            designfactors['rm'][rowi] = seg
+
+            # Store pt and clust
+            designfactors['ptids'][rowi] = pt
+            designfactors['group'][rowi] = clustlabels.loc[pt]['clustlabel']
+
+            # add row
+            rowi += 1
+
+    return avgesegments, cv, designfactors
