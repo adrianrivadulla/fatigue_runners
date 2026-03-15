@@ -37,17 +37,13 @@ master = master.loc[pts]
 
 # Load clustlabels
 clustlabels = pd.read_csv(config.clustlabelspath, index_col="ptcode")
-uniqueclustlabels = clustlabels.groupby("clustlabel", as_index=False)[
-    "colourcode"
-].first()
+uniqueclustlabels = clustlabels.groupby("clustlabel", as_index=False)["colourcode"].first()
 
 # Keep only pts in mastersheet that are in clustlabels
 master = master.join(clustlabels, how="inner")
 
 # Session 2 times to seconds and measure covered distance
-master["Sess2_times"] = master["Sess2_time"].apply(
-    lambda x: x.hour * 3600 + x.minute * 60 + x.second
-)
+master["Sess2_times"] = master["Sess2_time"].apply(lambda x: x.hour * 3600 + x.minute * 60 + x.second)
 speedms = (master["LT"] + 0.05 * master["LT"]) * 1000 / 3600
 master["Sess2_dist"] = speedms * master["Sess2_times"]
 
@@ -56,13 +52,9 @@ physdata = prep_phys_data(config.physdatapath, wantedsignals=["smooth"], wantedp
 normphysdata = interpolate_dict(physdata["smooth"], new_length=101)
 
 # Normalise VO by VO2peakkg to get relative VO and express it as a percentage of VO2peak
-assert list(physdata["smooth"].keys()) == list(master.index), (
-    "Participants in physdata and master do not match"
-)
+assert list(physdata["smooth"].keys()) == list(master.index), "Participants in physdata and master do not match"
 normphysdata["VO2"] /= np.reshape(master["Mass"].values, (len(master), 1))
-normphysdata["VO2"] = (
-    normphysdata["VO2"] / np.reshape(master["VO2peakkg"].values, (len(master), 1)) * 100
-)
+normphysdata["VO2"] = normphysdata["VO2"] / np.reshape(master["VO2peakkg"].values, (len(master), 1)) * 100
 
 # Get unique clustlabels and corresponding colour TODO. Can be deleted once you finish placing the colours where they need to be
 # uniqclustlabels = natsort.natsorted(np.unique(clustlabels['clustlabel']))
@@ -74,25 +66,15 @@ stat_comparison = {"demoanthrophys": {}, "kinematics": {}, "cv": {}}
 
 # %% Gas data visualisation
 
-gasfig = visualise_gas_data(
-    normphysdata, config.wantedgasvars, config.gas_titles, config.gas_ylabels
-)
-gasfig.savefig(
-    os.path.join(config.reportdir, f"{savingkw}_gasdata_norm.png"),
-    dpi=300,
-    bbox_inches="tight",
-)
+gasfig = visualise_gas_data(normphysdata, config.wantedgasvars, config.gas_titles, config.gas_ylabels)
+gasfig.savefig(os.path.join(config.reportdir, f"{savingkw}_gasdata_norm.png"), dpi=300, bbox_inches="tight")
 plt.close(gasfig)
 
 # %% Print extra info reported in the paper
 
 # Print avge and std temperature and humidity for Sess2
-print(
-    f"Avge temp: {np.mean(master['Sess2_Temperature'])}C, std: {np.std(master['Sess2_Temperature'])}C"
-)
-print(
-    f"Avge humidity: {np.mean(master['Sess2_Humidity'])}%, std: {np.std(master['Sess2_Humidity'])}%"
-)
+print(f"Avge temp: {np.mean(master['Sess2_Temperature'])}C, std: {np.std(master['Sess2_Temperature'])}C")
+print(f"Avge humidity: {np.mean(master['Sess2_Humidity'])}%, std: {np.std(master['Sess2_Humidity'])}%")
 
 # Report mean and std La
 print(f"Mean La: {np.nanmean(master['Sess2_La'])}")
@@ -100,9 +82,7 @@ print(f"Std La: {np.nanstd(master['Sess2_La'])}")
 
 # Report median RPE and interquartile range
 print(f"Median RPE: {np.nanmedian(master['Sess2_RPE'])}")
-print(
-    f"IQR RPE: {np.nanpercentile(master['Sess2_RPE'], 75) - np.nanpercentile(master['Sess2_RPE'], 25)}"
-)
+print(f"IQR RPE: {np.nanpercentile(master['Sess2_RPE'], 75) - np.nanpercentile(master['Sess2_RPE'], 25)}")
 
 
 # %% Compare demogrpahics, anthropometrics and physiological data between clusters
@@ -119,16 +99,12 @@ figargs = {
 }
 
 # TODO. potentially rename to compare_demoanthrophys
-stat_comparison["demoanthrophys"] = demoanthrophys_analysis(
-    master, "clustlabel", config.speeds, figargs
-)
+stat_comparison["demoanthrophys"] = demoanthrophys_analysis(master, "clustlabel", config.speeds, figargs)
 
 # %% Kinematics
 
 # Get average pattern for each segment and participant, coordination variability data and design factors for stats
-avgesegments, cv, designfactors = prep_kinematic_data(
-    segments, pts, clustlabels, config.seglabels, config.couplings
-)
+avgesegments, cv, designfactors = prep_kinematic_data(segments, pts, clustlabels, config.seglabels, config.couplings)
 
 # %% Disc var analysis
 
@@ -194,6 +170,4 @@ figargs = {
     "varkw": "coordvars",
 }
 
-stat_comparison["cv"] = run_SPM_ANOVA2onerm(
-    cv, designfactors, figargs, rmlabels=config.seglabels
-)
+stat_comparison["cv"] = run_SPM_ANOVA2onerm(cv, designfactors, figargs, rmlabels=config.seglabels)
