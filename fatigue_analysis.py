@@ -7,7 +7,7 @@ from research_utils.statistics import demoanthrophys_analysis
 from research_utils.pipelines import run_0D_ANOVA2onerm
 from utils.analysis import (
     interpolate_dict,
-    run_SPM_ANOVA2onerm,
+    # run_SPM_ANOVA2onerm,
 )  # TODO. this will go into research_utils.pipelines
 from utils.data_processing import prep_mastersheet, prep_phys_data, prep_kinematic_data
 from utils.vis import visualise_gas_data
@@ -125,14 +125,11 @@ figs, stat_comparison["kinematics"]["0D"] = run_0D_ANOVA2onerm(
 )
 
 for figname, fig in figs.items():
-    fig.savefig(
-        os.path.join(config.reportdir, f"{savingkw}_{figname}.png"),
-        dpi=300,
-        bbox_inches="tight",
-    )
+    fig.savefig(os.path.join(config.reportdir, f"{savingkw}_{figname}.png"), dpi=300, bbox_inches="tight")
     plt.close(fig)
 
-# %% 2-way ANOVA SPM for the continuous variables  TODO. YOU ARE HERE. READ PIPELINES IN THE RESEARCH-UTILS MODULE TO REFACTOR THE NEXT SECTION
+# %% 2-way ANOVA SPM for the continuous variables
+#  TODO. YOU ARE HERE. READ PIPELINES IN THE RESEARCH-UTILS MODULE TO REFACTOR THE NEXT SECTION
 
 figargs = {
     "reportdir": config.reportdir,
