@@ -5,19 +5,12 @@ import os
 import pandas as pd
 from research_utils.statistics import demoanthrophys_analysis
 from research_utils.pipelines import run_0D_ANOVA2onerm
-from utils.analysis import (
-    interpolate_dict,
-    # run_SPM_ANOVA2onerm,
-)  # TODO. this will go into research_utils.pipelines
+from utils.analysis import interpolate_dict
 from utils.data_processing import prep_mastersheet, prep_phys_data, prep_kinematic_data
 from utils.vis import visualise_gas_data
 
 
 # from utils.temp import run_0D_ANOVA2onerm
-
-
-# TODO. Test run_0D_ANOVA2onerm in the clustering repo and make sure it works there
-# TODO. If so, move it to research_utils
 
 
 # %% Default
