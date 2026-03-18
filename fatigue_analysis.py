@@ -10,7 +10,7 @@ from utils.data_processing import prep_mastersheet, prep_phys_data, prep_kinemat
 from utils.vis import visualise_gas_data
 
 
-# from utils.temp import run_0D_ANOVA2onerm
+from utils.temp import run_SPM_ANOVA2onerm
 
 
 # %% Default
@@ -122,42 +122,52 @@ for figname, fig in figs.items():
     plt.close(fig)
 
 # %% 2-way ANOVA SPM for the continuous variables
-#  TODO. YOU ARE HERE. READ PIPELINES IN THE RESEARCH-UTILS MODULE TO REFACTOR THE NEXT SECTION
 
 figargs = {
-    "reportdir": config.reportdir,
-    "savingkw": savingkw,
+    "rmlabels": config.seglabels,
     "rmffigrows": 2,
     "rmffigcols": 3,
     "rmfcolours": config.segcolours,
     "rmfylabels": config.kinematics_ylabels,
     "grcolours": uniqueclustlabels["colourcode"].tolist(),
+    "group_names": config.clustnames,
+    "between_label": "C",
+    "within_label": "E",
     "vlinevar": avgesegments["DF"],
     "vartitles": config.kinematics_titles,
-    "varkw": "contvars",
 }
 
-stat_comparison["kinematics"] = run_SPM_ANOVA2onerm(
-    {contvar: avgesegments[contvar] for contvar in config.contvars},
-    designfactors,
-    figargs,
-    rmlabels=config.seglabels,
+stat_comparison["kinematics"], kinfigs, kinrmfig = run_SPM_ANOVA2onerm(
+    {contvar: avgesegments[contvar] for contvar in config.contvars}, designfactors, figargs
 )
 
+# Save group and interaction effect figures
+for var, fig in kinfigs.items():
+    fig.savefig(os.path.join(config.reportdir, f"{savingkw}_{var}_ANOVA2onerm.png"), dpi=300, bbox_inches="tight")
+    plt.close(fig)
 
-# %% 2-way ANOVA SPM for the coordination variability variables
+# Save rm effect figure
+kinrmfig.savefig(os.path.join(config.reportdir, f"{savingkw}_contvars_rm_effect.png"), dpi=300, bbox_inches="tight")
+
+
+# TODO. you are here. try to run the same you have above for the coordination variability part.
+# TODO. If everything works, test on clustering data.
+# TODO. If happy, polish the functions as much as you want and then move them to research_utils.pipelines and remove from temp
+# # %% 2-way ANOVA SPM for the coordination variability variables
 
 figargs = {
-    "reportdir": config.reportdir,
-    "savingkw": savingkw,
+    "rmlabels": config.seglabels,
     "rmffigrows": 1,
     "rmffigcols": 3,
     "rmfcolours": config.segcolours,
     "rmfylabels": config.coord_labels,
     "grcolours": uniqueclustlabels["colourcode"].tolist(),
+    "group_names": config.clustnames,
+    "between_label": "C",
+    "within_label": "E",
     "vlinevar": avgesegments["DF"],
     "vartitles": config.coord_titles,
-    "varkw": "coordvars",
 }
 
-stat_comparison["cv"] = run_SPM_ANOVA2onerm(cv, designfactors, figargs, rmlabels=config.seglabels)
+
+stat_comparison["cv"], cvfigs, cvrmfig = run_SPM_ANOVA2onerm(cv, designfactors, figargs)
