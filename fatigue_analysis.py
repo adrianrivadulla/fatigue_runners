@@ -3,8 +3,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import os
 import pandas as pd
-from research_utils.statistics import demoanthrophys_analysis
-from research_utils.pipelines import run_0D_ANOVA2onerm
+from research_utils.pipelines import run_demoanthrophys_two_groups_comparisons, run_0D_ANOVA2onerm
 from utils.analysis import interpolate_dict
 from utils.data_processing import prep_mastersheet, prep_phys_data, prep_kinematic_data
 from utils.vis import visualise_gas_data
@@ -49,13 +48,7 @@ assert list(physdata["smooth"].keys()) == list(master.index), "Participants in p
 normphysdata["VO2"] /= np.reshape(master["Mass"].values, (len(master), 1))
 normphysdata["VO2"] = normphysdata["VO2"] / np.reshape(master["VO2peakkg"].values, (len(master), 1)) * 100
 
-# Get unique clustlabels and corresponding colour TODO. Can be deleted once you finish placing the colours where they need to be
-# uniqclustlabels = natsort.natsorted(np.unique(clustlabels['clustlabel']))
-# uniqclustcolours = [clustlabels['colourcode'].loc[
-#                         clustlabels['clustlabel'] == x].iloc[0] for x in uniqclustlabels]
-
 stat_comparison = {"demoanthrophys": {}, "kinematics": {}, "cv": {}}
-
 
 # %% Gas data visualisation
 
@@ -91,16 +84,38 @@ figargs = {
     "savingkw": savingkw,
 }
 
-# TODO. potentially rename to compare_demoanthrophys
-stat_comparison["demoanthrophys"] = demoanthrophys_analysis(master, "clustlabel", config.speeds, figargs)
+req_variables = (
+    [key for key in config.demoanthrophysvars_titles if key != "RE"]
+    + [f"EE{speed}kg" for speed in config.speeds]
+    + ["clustlabel"]
+)
+
+stat_comparison["demoanthrophys"], demoanthrophysfig, normfigs, refig = run_demoanthrophys_two_groups_comparisons(
+    master[req_variables],
+    grouping_var="clustlabel",
+    re_speeds=config.speeds,
+    titles=config.demoanthrophysvars_titles,
+    ylabels=config.demoanthrophysvars_ylabels,
+    group_names=config.clustnames,
+    group_colours=uniqueclustlabels["colourcode"].tolist(),
+)
+
+# Save figures
+demoanthrophysfig.savefig(
+    os.path.join(config.reportdir, f"{savingkw}_demoanthrophys.png"), dpi=300, bbox_inches="tight"
+)
+plt.close(demoanthrophysfig)
+for var, fig in normfigs.items():
+    fig.savefig(os.path.join(config.reportdir, f"{savingkw}_{var}_QQplot.png"), dpi=300, bbox_inches="tight")
+    plt.close(fig)
+plt.close(refig)
 
 # %% Kinematics
 
 # Get average pattern for each segment and participant, coordination variability data and design factors for stats
 avgesegments, cv, designfactors = prep_kinematic_data(segments, pts, clustlabels, config.seglabels, config.couplings)
 
-# %% Disc var analysis
-
+# Disc var analysis
 figs, stat_comparison["kinematics"]["0D"] = run_0D_ANOVA2onerm(
     {discvar: avgesegments[discvar] for discvar in config.discvars},
     designfactors,
@@ -148,9 +163,9 @@ for var, fig in kinfigs.items():
 
 # Save rm effect figure
 kinrmfig.savefig(os.path.join(config.reportdir, f"{savingkw}_contvars_rm_effect.png"), dpi=300, bbox_inches="tight")
+plt.close(kinrmfig)
 
 
-# TODO. you are here. try to run the same you have above for the coordination variability part.
 # TODO. If everything works, test on clustering data.
 # TODO. If happy, polish the functions as much as you want and then move them to research_utils.pipelines and remove from temp
 # # %% 2-way ANOVA SPM for the coordination variability variables
@@ -171,3 +186,10 @@ figargs = {
 
 
 stat_comparison["cv"], cvfigs, cvrmfig = run_SPM_ANOVA2onerm(cv, designfactors, figargs)
+
+for var, fig in cvfigs.items():
+    fig.savefig(os.path.join(config.reportdir, f"{savingkw}_{var}_ANOVA2onerm.png"), dpi=300, bbox_inches="tight")
+    plt.close(fig)
+
+cvrmfig.savefig(os.path.join(config.reportdir, f"{savingkw}_coordvars_rm_effect.png"), dpi=300, bbox_inches="tight")
+plt.close(cvrmfig)

@@ -111,6 +111,7 @@ omega_labels = {
 
 # Demographics, anthropometrics and physiological variables and titles
 demoanthrophysvars_titles = {
+    "Sex": "Sex",
     "Age": "Age",
     "Height": "Height",
     "Mass": "Mass",
@@ -123,7 +124,6 @@ demoanthrophysvars_titles = {
     "LT": "LT",
     "VO2peakkg": "VO2peak",
     "RE": "Running Economy",
-    "RELT": "Running Economy LT",
     "RunningDaysAWeek": "Weekly runs",
     "KmAWeek": "Weekly volume",
     "Time10Ks": "10k time",
