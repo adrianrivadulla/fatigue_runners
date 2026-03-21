@@ -11,6 +11,9 @@ from utils.vis import visualise_gas_data
 
 from utils.temp import run_SPM_ANOVA2onerm
 
+# TODO. Keep adding plot args as kwargs in 0D_ANOVA whatever and SPM_ANOVA
+# TODO. Test demoanthrophys and SPM_ANOVA in clustering. if happy, move SPM_ANOVA to research_utils.pipelines
+
 
 # %% Default
 
@@ -73,17 +76,6 @@ print(f"IQR RPE: {np.nanpercentile(master['Sess2_RPE'], 75) - np.nanpercentile(m
 
 # %% Compare demogrpahics, anthropometrics and physiological data between clusters
 
-# Set figargs
-figargs = {
-    "reportdir": config.reportdir,
-    "demoanthrophysvars_titles": config.demoanthrophysvars_titles,
-    "demoanthrophysvars_ylabels": config.demoanthrophysvars_ylabels,
-    "grouplabels": uniqueclustlabels["clustlabel"].tolist(),
-    "groupcolours": uniqueclustlabels["colourcode"].tolist(),
-    "custom_groupnames": config.clustnames,
-    "savingkw": savingkw,
-}
-
 req_variables = (
     [key for key in config.demoanthrophysvars_titles if key != "RE"]
     + [f"EE{speed}kg" for speed in config.speeds]
@@ -119,13 +111,13 @@ avgesegments, cv, designfactors = prep_kinematic_data(segments, pts, clustlabels
 figs, stat_comparison["kinematics"]["0D"] = run_0D_ANOVA2onerm(
     {discvar: avgesegments[discvar] for discvar in config.discvars},
     designfactors,
-    config.kinematics_titles,
-    config.kinematics_ylabels,
-    uniqueclustlabels["colourcode"].tolist(),
-    config.seglabels,
-    group_names=config.clustnames,
     between_factor="clustlabel",
     within_factor="segment",
+    titles=config.kinematics_titles,
+    ylabels=config.kinematics_ylabels,
+    group_names=config.clustnames,
+    group_colours=uniqueclustlabels["colourcode"].tolist(),
+    rm_names=config.seglabels,
     between_label="C",
     within_label="E",
     within_vis=True,
@@ -137,6 +129,8 @@ for figname, fig in figs.items():
     plt.close(fig)
 
 # %% 2-way ANOVA SPM for the continuous variables
+
+# TODO. You are here, reformat run_SPM... to take kwargs and then try in in clustering. if all good, you're done with this repo
 
 figargs = {
     "rmlabels": config.seglabels,
@@ -165,9 +159,6 @@ for var, fig in kinfigs.items():
 kinrmfig.savefig(os.path.join(config.reportdir, f"{savingkw}_contvars_rm_effect.png"), dpi=300, bbox_inches="tight")
 plt.close(kinrmfig)
 
-
-# TODO. If everything works, test on clustering data.
-# TODO. If happy, polish the functions as much as you want and then move them to research_utils.pipelines and remove from temp
 # # %% 2-way ANOVA SPM for the coordination variability variables
 
 figargs = {
