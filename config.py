@@ -1,7 +1,6 @@
 import matplotlib
-import os
 import matplotlib.pyplot as plt
-
+import os
 
 # matplotlib backend
 matplotlib.use("Qt5Agg")
@@ -96,7 +95,7 @@ coord_titles = {
     "RKNEE_VEL__RANK_VEL": "Knee ${\omega}$ \u2014 Ankle ${\omega}$",
 }
 
-coord_labels = {
+coord_ylabels = {
     "RTRUNK2PELVIS_VEL__RHIP_VEL": "Ellipse area (°²/s²)",
     "RHIP_VEL__RKNEE_VEL": "Ellipse area (°²/s²)",
     "RKNEE_VEL__RANK_VEL": "Ellipse area (°²/s²)",

@@ -17,56 +17,101 @@ TODO. so it can be extracted into its own function, you can have the additional 
 
 # %% Imports
 
+from itertools import combinations
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import spm1d
-from itertools import combinations
+import seaborn as sns
 # from research_utils.statistics import write_spm_stats_str, add_sig_spm_cluster_patch
 
 # %% Functions
 
 
-def run_SPM_ANOVA2onerm(datadict, designfactors, figargs):
+def plot_spm_test(spm_obj, suptitle):
     """ """
 
-    rmlabels = figargs["rmlabels"] if "rmlabels" in figargs else np.unique(designfactors["rm"])
+    fig = plt.figure()
+    spm_obj.plot()
+    spm_obj.plot_threshold_label(fontsize=8)
+    spm_obj.plot_p_values(size=10)
+    fig.suptitle(suptitle)
 
-    stat_comparison = SPM_ANOVA2onerm(datadict, designfactors, rmlabels=rmlabels)
+    return fig
+
+
+def run_SPM_ANOVA2onerm(datadict, designfactors, **kwargs):
+    """ """
+
+    # Get kwargs
+    spm_random_seed = kwargs.get("SPM_random_seed", None)
+    titles = kwargs.get("titles", {key: key for key in datadict.keys()})
+    group_names = kwargs.get("group_names", np.unique(designfactors["group"]))
+    group_colours = kwargs.get("group_colours", sns.color_palette("Set2", n_colors=len(group_names)))
+    between_label = kwargs.get("between_label", "B")
+    within_label = kwargs.get("within_label", "W")
+    rm_names = kwargs.get("rm_names", np.unique(designfactors["rm"]))
+    ylabels = kwargs.get("ylabels", {key: "" for key in datadict.keys()})
+    rm_fig_rows = kwargs.get("rm_fig_rows", 1)
+    rm_fig_cols = kwargs.get("rm_fig_cols", len(rm_names))
+    rm_colours = kwargs.get("rm_colours", sns.color_palette("Set2", n_colors=len(rm_names)))
+    vline_var = kwargs.get("vline_var", None)
+
+    stat_comparison, spmfigs = SPM_ANOVA2onerm(datadict, designfactors, random_seed=spm_random_seed, rm_names=rm_names)
 
     # TODO. Keep this here for now for debugging
     # stat_comparison = np.load(f"Fatigue_kinematics_SPM_ANOVA2onerm.npy", allow_pickle=True).item()
 
-    figs = vis_SPM_ANOVA2onerm_between_and_x_effects(
+    group_inter_figs = vis_SPM_ANOVA2onerm_between_and_x_effects(
         datadict,
         designfactors,
         stat_comparison,
-        figargs,
+        rm_names=rm_names,
+        suptitles=titles,
+        ylabels=ylabels,
+        group_names=group_names,
+        colours=group_colours,
+        between_label=between_label,
+        within_label=within_label,
+        vline_var=vline_var,
     )
 
-    rmfig = vis_SPM_ANOVA2onerm_within_effect(
+    rm_fig = vis_SPM_ANOVA2onerm_within_effect(
         datadict,
         designfactors,
         stat_comparison,
-        figargs,
+        titles=titles,
+        ylabels=ylabels,
+        rm_names=rm_names,
+        fig_rows=rm_fig_rows,
+        fig_cols=rm_fig_cols,
+        colours=rm_colours,
+        vline_var=vline_var,
     )
 
-    return stat_comparison, figs, rmfig
+    return stat_comparison, spmfigs, group_inter_figs, rm_fig
 
 
-def SPM_ANOVA2onerm(datadict, designfactors, rmlabels=None):
+def SPM_ANOVA2onerm(datadict, designfactors, random_seed=None, **kwargs):
+    """ """
 
-    # Labels of repeated measures factor
-    if rmlabels is None:
-        rmlabels = np.unique(designfactors["rm"])
+    # Get kwargs
+    rm_names = kwargs.get("rm_names", np.unique(designfactors["rm"]))
 
     stat_comparison = {}
+    figs = {}
+
+    if random_seed is not None:
+        np.random.seed(random_seed)
 
     for vari, var in enumerate(datadict.keys()):
         stat_comparison[var] = {}
 
+        now = pd.Timestamp.now().strftime("%Y-%m-%d %H:%M:%S")
+        print(f"\n\n[{now}] - Conducting ANOVA2onerm for {var}...\n")
+
         # Replace string labels in segments and pt with integers
-        rmcodes = pd.Categorical(designfactors["rm"], categories=rmlabels, ordered=True).codes
+        rmcodes = pd.Categorical(designfactors["rm"], categories=rm_names, ordered=True).codes
         ptcodes = pd.Categorical(designfactors["ptids"]).codes
 
         # Conduct SPM analysis
@@ -74,16 +119,21 @@ def SPM_ANOVA2onerm(datadict, designfactors, rmlabels=None):
 
         stat_comparison[var]["ANOVA2onerm"] = spmlist.inference(alpha=0.05, iterations=1000)
 
+        print(stat_comparison[var]["ANOVA2onerm"])
+
         # Post hoc tests and figures
         stat_comparison[var]["posthocs"] = {}
 
         # Follow up with post-hoc tests if group effects are found
         if stat_comparison[var]["ANOVA2onerm"][0].h0reject:
+            now = pd.Timestamp.now().strftime("%Y-%m-%d %H:%M:%S")
+            print(f"[{now}] - Group effect found for {var}, conducting post-hoc tests...\n")
             stat_comparison[var]["posthocs"]["group"] = {}
 
             # For each repeated measure
-            for rmfi, rmfactor in enumerate(rmlabels):
-                stat_comparison[var]["posthocs"]["group"][rmlabels[rmfi]] = {}
+            for rmfi, rmfactor in enumerate(rm_names):
+                print(f"RM {rmfactor}\n")
+                stat_comparison[var]["posthocs"]["group"][rm_names[rmfi]] = {}
 
                 # Get data
                 Y = []
@@ -96,20 +146,28 @@ def SPM_ANOVA2onerm(datadict, designfactors, rmlabels=None):
 
                 # SnPM ttest
                 snpm = spm1d.stats.nonparam.ttest2(Y[0], Y[1])
-                snpmi = snpm.inference(alpha=0.05 / len(rmlabels), two_tailed=True, iterations=1000)
+                snpmi = snpm.inference(alpha=0.05 / len(rm_names), two_tailed=True, iterations=1000)
+                print(snpmi)
 
                 # Add snpmi to dictionary
                 stat_comparison[var]["posthocs"]["group"][rmfactor]["snpm_ttest2"] = snpmi
 
+                # SPM figure for current posthoc test
+                figs[f"{var}_posthoc_group_at_{rmfactor}"] = plot_spm_test(snpmi, f"{var}_posthoc_group_at_{rmfactor}")
+
         # RM factor effect
         if stat_comparison[var]["ANOVA2onerm"][1].h0reject:
+            now = pd.Timestamp.now().strftime("%Y-%m-%d %H:%M:%S")
+            print(f"[{now}] - Within effect found for {var}, conducting post-hoc tests...\n")
             stat_comparison[var]["posthocs"]["rm"] = {}
 
             # Get all possible combinations of segments
-            rmcombos = list(combinations(range(len(rmlabels)), 2))
+            rmcombos = list(combinations(range(len(rm_names)), 2))
 
             # Calculate change in conditions
             for rmcombo in rmcombos:
+                print(f"RM {rm_names[rmcombo[0]]} v {rm_names[rmcombo[1]]}\n")
+
                 # Get data
                 Y = []
                 for rmf in rmcombo:
@@ -122,23 +180,35 @@ def SPM_ANOVA2onerm(datadict, designfactors, rmlabels=None):
                 # SnPM ttest
                 snpm = spm1d.stats.nonparam.ttest2(Y[0], Y[1])
                 snpmi = snpm.inference(alpha=0.05 / len(rmcombos), two_tailed=True, iterations=1000)
+                print(snpmi)
 
                 # Add snpmi to dictionary
-                stat_comparison[var]["posthocs"]["rm"][f"{rmcombo[0]}_v_{rmcombo[1]}"] = {}
-                stat_comparison[var]["posthocs"]["rm"][f"{rmcombo[0]}_v_{rmcombo[1]}"]["snpm_ttest2"] = snpmi
+                stat_comparison[var]["posthocs"]["rm"][f"{rm_names[rmcombo[0]]}_v_{rm_names[rmcombo[1]]}"] = {}
+                stat_comparison[var]["posthocs"]["rm"][f"{rm_names[rmcombo[0]]}_v_{rm_names[rmcombo[1]]}"][
+                    "snpm_ttest2"
+                ] = snpmi
+
+                # SPM figure for current posthoc test
+                figs[f"{var}_posthoc_rm_{rm_names[rmcombo[0]]}_v_{rm_names[rmcombo[1]]}"] = plot_spm_test(
+                    snpmi, f"{var}_posthoc_rm_{rm_names[rmcombo[0]]}_v_{rm_names[rmcombo[1]]}"
+                )
 
         # Interaction effect
         if stat_comparison[var]["ANOVA2onerm"][2].h0reject:
+            now = pd.Timestamp.now().strftime("%Y-%m-%d %H:%M:%S")
+            print(f"[{now}] - Interaction effect found for {var}, conducting post-hoc tests...\n")
             stat_comparison[var]["posthocs"]["interaction"] = {}
 
             # Calculate change in conditions
-            for rmfi in range(len(rmlabels) - 1):
+            for rmfi in range(len(rm_names) - 1):
+                print(f"{rm_names[rmfi + 1]} with respect to {rm_names[rmfi]} by group\n")
+
                 # Get data
                 Ydiff = []
                 for group in np.unique(designfactors["group"]):
-                    gridcs = np.where((designfactors["rm"] == rmlabels[rmfi]) & (designfactors["group"] == group))[0]
+                    gridcs = np.where((designfactors["rm"] == rm_names[rmfi]) & (designfactors["group"] == group))[0]
                     gridcsnext = np.where(
-                        (designfactors["rm"] == rmlabels[rmfi + 1]) & (designfactors["group"] == group)
+                        (designfactors["rm"] == rm_names[rmfi + 1]) & (designfactors["group"] == group)
                     )[0]
 
                     # Append data to groups
@@ -146,27 +216,36 @@ def SPM_ANOVA2onerm(datadict, designfactors, rmlabels=None):
 
                 # SnPM ttest
                 snpm = spm1d.stats.nonparam.ttest2(Ydiff[0], Ydiff[1])
-                snpmi = snpm.inference(alpha=0.05 / (len(rmlabels) - 1), two_tailed=True, iterations=1000)
+                snpmi = snpm.inference(alpha=0.05 / (len(rm_names) - 1), two_tailed=True, iterations=1000)
+                print(snpmi)
 
                 # Add snpmi to dictionary
-                stat_comparison[var]["posthocs"]["interaction"][f"{rmlabels[rmfi + 1]}_wrt_{rmlabels[rmfi]}"] = {}
-                stat_comparison[var]["posthocs"]["interaction"][f"{rmlabels[rmfi + 1]}_wrt_{rmlabels[rmfi]}"][
+                stat_comparison[var]["posthocs"]["interaction"][f"{rm_names[rmfi + 1]}_wrt_{rm_names[rmfi]}"] = {}
+                stat_comparison[var]["posthocs"]["interaction"][f"{rm_names[rmfi + 1]}_wrt_{rm_names[rmfi]}"][
                     "snpm_ttest2"
                 ] = snpmi
 
-    return stat_comparison
+                # SPM figure for current posthoc test
+                figs[f"{var}_posthoc_x_{rm_names[rmfi + 1]}_wrt_{rm_names[rmfi]}"] = plot_spm_test(
+                    snpmi, f"{var}_posthoc_x_{rm_names[rmfi + 1]}_v_{rm_names[rmfi]}"
+                )
+
+    return stat_comparison, figs
 
 
-def vis_SPM_ANOVA2onerm_between_and_x_effects(datadict, designfactors, stat_comparison, figargs):
+def vis_SPM_ANOVA2onerm_between_and_x_effects(datadict, designfactors, stat_comparison, **kwargs):
+    """ """
 
-    rmlabels = figargs["rmlabels"] if "rmlabels" in figargs else np.unique(designfactors["rm"])
-    ylabels = figargs["rmfylabels"]
-    grnames = figargs["group_names"]
-    grcolours = figargs["grcolours"]
-    vlinevar = figargs["vlinevar"]
-    vartitles = figargs["vartitles"]
-    between_label = figargs["between_label"] if "between_label" in figargs else "B"
-    within_label = figargs["within_label"] if "within_label" in figargs else "W"
+    # Get kwargs
+    rm_names = kwargs.get("rm_names", np.unique(designfactors["rm"]))
+    suptitles = kwargs.get("suptitles", {key: key for key in datadict.keys()})
+    ylabels = kwargs.get("ylabels", {key: "" for key in datadict.keys()})
+    xlabels = kwargs.get("xlabels", {key: "Time (%)" for key in datadict.keys()})
+    group_names = kwargs.get("group_names", np.unique(designfactors["group"]))
+    colours = kwargs.get("colours", sns.color_palette("Set2", n_colors=len(group_names)))
+    between_label = kwargs.get("between_label", "B")
+    within_label = kwargs.get("within_label", "W")
+    vline_var = kwargs.get("vline_var", None)
 
     figs = {}
 
@@ -182,7 +261,7 @@ def vis_SPM_ANOVA2onerm_between_and_x_effects(datadict, designfactors, stat_comp
         loweraxs = []
 
         # Extract relevant stats from stat_comparison for current variable
-        for rmfi, rmfactor in enumerate(rmlabels):
+        for rmfi, rmfactor in enumerate(rm_names):
             # Create axis in group and interaction figure
             upperaxs.append(figs[var].add_subplot(topgrid[0, rmfi]))
 
@@ -194,18 +273,19 @@ def vis_SPM_ANOVA2onerm_between_and_x_effects(datadict, designfactors, stat_comp
                     datadict[var][idcs, :],
                     x=np.linspace(0, 100, datadict[var].shape[1]),
                     ax=upperaxs[rmfi],
-                    linecolor=grcolours[group],
-                    facecolor=grcolours[group],
+                    linecolor=colours[group],
+                    facecolor=colours[group],
                 )
 
-            # Add vertical line at avge toe off for each cluster (outside loop so it doesn't mess the ylims)
-            for group in np.unique(designfactors["group"]):
-                idcs = np.where((designfactors["group"] == group) & (designfactors["rm"] == rmfactor))[0]
+            # Add vertical line (at avge toe off) for each group (outside loop so it doesn't mess the ylims)
+            if vline_var is not None:
+                for group in np.unique(designfactors["group"]):
+                    idcs = np.where((designfactors["group"] == group) & (designfactors["rm"] == rmfactor))[0]
 
-                upperaxs[rmfi].axvline(x=np.mean(vlinevar[idcs]) * 100, color=grcolours[group], linestyle=":")
+                    upperaxs[rmfi].axvline(x=np.mean(vline_var[idcs]) * 100, color=colours[group], linestyle=":")
 
             # xlabel
-            upperaxs[rmfi].set_xlabel("Time (%)", fontsize=10)
+            upperaxs[rmfi].set_xlabel(xlabels[var], fontsize=10)
 
             # Title
             upperaxs[rmfi].set_title(rmfactor)
@@ -240,7 +320,7 @@ def vis_SPM_ANOVA2onerm_between_and_x_effects(datadict, designfactors, stat_comp
 
                     # Get indices of group at previous repeated measure
                     idcsprev = np.where(
-                        (designfactors["rm"] == rmlabels[rmfi - 1]) & (designfactors["group"] == group)
+                        (designfactors["rm"] == rm_names[rmfi - 1]) & (designfactors["group"] == group)
                     )[0]
 
                     # Calculate difference in variable between groups
@@ -249,44 +329,45 @@ def vis_SPM_ANOVA2onerm_between_and_x_effects(datadict, designfactors, stat_comp
                     spm1d.plot.plot_mean_sd(
                         Ydiff,
                         x=np.linspace(0, 100, Ydiff.shape[1]),
-                        linecolor=grcolours[group],
-                        facecolor=grcolours[group],
+                        linecolor=colours[group],
+                        facecolor=colours[group],
                         ax=loweraxs[-1],
                     )
 
-                # Add vertical lines at avge toe off for each cluster (outside loop so it doesn't mess the ylims)
-                for group in np.unique(designfactors["group"]):
-                    gridcs = np.where((designfactors["rm"] == rmfactor) & (designfactors["group"] == group))[0]
+                # Add vertical lines (at avge toe off) for each group (outside loop so it doesn't mess the ylims)
+                if vline_var is not None:
+                    for group in np.unique(designfactors["group"]):
+                        gridcs = np.where((designfactors["rm"] == rmfactor) & (designfactors["group"] == group))[0]
 
-                    loweraxs[-1].axvline(x=np.mean(vlinevar[gridcs]) * 100, color=grcolours[group], linestyle=":")
+                        loweraxs[-1].axvline(x=np.mean(vline_var[gridcs]) * 100, color=colours[group], linestyle=":")
 
                 # Title
-                loweraxs[-1].set_title(f"{rmfactor} with respect to {rmlabels[rmfi - 1]}")
+                loweraxs[-1].set_title(f"{rmfactor} with respect to {rm_names[rmfi - 1]}")
 
                 # xlabel
-                loweraxs[-1].set_xlabel("Time (%)", fontsize=10)
+                loweraxs[-1].set_xlabel(xlabels[var], fontsize=10)
 
                 # Add patches to loweraxs if significant diffs are found
                 if stat_comparison[var]["ANOVA2onerm"][2].h0reject:
                     interaction_posthocs = stat_comparison[var]["posthocs"]["interaction"]
-                    if interaction_posthocs[f"{rmlabels[rmfi + 1]}_wrt_{rmlabels[rmfi]}"]["snpm_ttest2"].h0reject:
+                    if interaction_posthocs[f"{rm_names[rmfi + 1]}_wrt_{rm_names[rmfi]}"]["snpm_ttest2"].h0reject:
                         # Scaler for sigcluster endpoints
                         tscaler = loweraxs[rmfi].get_xlim()[1] / (Ydiff[0].shape[1] - 1)
 
                         # Add significant pathces to upperaxs
                         add_sig_spm_cluster_patch(
                             loweraxs[rmfi],
-                            interaction_posthocs[f"{rmlabels[rmfi + 1]}_wrt_{rmlabels[rmfi]}"]["snpm_ttest2"],
+                            interaction_posthocs[f"{rm_names[rmfi + 1]}_wrt_{rm_names[rmfi]}"]["snpm_ttest2"],
                             tscaler=tscaler,
                         )
 
                         # Add stats to xlabel
-                        statstr = f"t* = {write_spm_stats_str(interaction_posthocs[f'{rmlabels[rmfi + 1]}_wrt_{rmlabels[rmfi]}']['snpm_ttest2'], mode='full')}"
+                        statstr = f"t* = {write_spm_stats_str(interaction_posthocs[f'{rm_names[rmfi + 1]}_wrt_{rm_names[rmfi]}']['snpm_ttest2'], mode='full')}"
                         loweraxs[rmfi].set_xlabel(statstr, fontsize=10)
 
         # Legend
         loweraxs[-1].legend(
-            ["_nolegend_"] + grnames,
+            ["_nolegend_"] + group_names,
             loc="lower center",
             bbox_to_anchor=(0.5, 0),
             ncol=2,
@@ -323,51 +404,55 @@ def vis_SPM_ANOVA2onerm_between_and_x_effects(datadict, designfactors, stat_comp
         # Write interaction effect string for suptitle
         statstr += f"; {between_label}x{within_label}: F* = {write_spm_stats_str(stat_comparison[var]['ANOVA2onerm'][2], mode='full')}"
 
-        figs[var].suptitle(f"{vartitles[var]}\n{statstr}")
+        figs[var].suptitle(f"{suptitles[var]}\n{statstr}")
         figs[var].tight_layout()
 
     return figs
 
 
-def vis_SPM_ANOVA2onerm_within_effect(datadict, designfactors, stat_comparison, figargs):
+def vis_SPM_ANOVA2onerm_within_effect(datadict, designfactors, stat_comparison, **kwargs):
     """ """
-    rmlabels = figargs["rmlabels"] if "rmlabels" in figargs else np.unique(designfactors["rm"])
-    rmffigrows = figargs["rmffigrows"]
-    rmffigcols = figargs["rmffigcols"]
-    rmfcolours = figargs["rmfcolours"]
-    ylabels = figargs["rmfylabels"]
-    vartitles = figargs["vartitles"]
-    vlinevar = figargs["vlinevar"]
+
+    # Get kwargs
+    rm_names = kwargs.get("rm_names", np.unique(designfactors["rm"]))
+    fig_rows = kwargs.get("fig_rows", 1)
+    fig_cols = kwargs.get("fig_cols", len(datadict))
+    colours = kwargs.get("colours", sns.color_palette("Set2", n_colors=len(rm_names)))
+    titles = kwargs.get("titles", {key: key for key in datadict.keys()})
+    ylabels = kwargs.get("ylabels", {key: "" for key in datadict.keys()})
+    xlabels = kwargs.get("xlabels", {key: "Time (%)" for key in datadict.keys()})
+    vline_var = kwargs.get("vline_var", None)
 
     # Repeated measures
-    rmffig, rmfaxs = plt.subplots(rmffigrows, rmffigcols, figsize=(11, 4.5))
+    rmffig, rmfaxs = plt.subplots(fig_rows, fig_cols, figsize=(11, 4.5))
     rmfaxs = rmfaxs.flatten()
 
     for vari, var in enumerate(datadict.keys()):
-        for rmfi, rmfactor in enumerate(rmlabels):
+        for rmfi, rmfactor in enumerate(rm_names):
             # Repeated measures figure
             rmfidcs = np.where(designfactors["rm"] == rmfactor)[0]
             spm1d.plot.plot_mean_sd(
                 datadict[var][rmfidcs, :],
                 x=np.linspace(0, 100, datadict[var].shape[1]),
-                linecolor=rmfcolours[rmfi],
-                facecolor=rmfcolours[rmfi],
+                linecolor=colours[rmfi],
+                facecolor=colours[rmfi],
                 ax=rmfaxs[vari],
             )
 
             # x and y labels
-            rmfaxs[vari].set_xlabel("Time (%)", fontsize=10)
+            rmfaxs[vari].set_xlabel(xlabels[var], fontsize=10)
             rmfaxs[vari].set_ylabel(ylabels[var])
 
-        # Add vertical line to rm figures at avge toe off (outside loop so it doesn't mess the ylims)
-        for rmfi, rmfactor in enumerate(rmlabels):
-            rmfaxs[vari].axvline(
-                x=np.mean(vlinevar[designfactors["rm"] == rmfactor]) * 100, color=rmfcolours[rmfi], linestyle=":"
-            )
+        # Add vertical line to rm figures (at avge toe off, outside loop so it doesn't mess the ylims)
+        if vline_var is not None:
+            for rmfi, rmfactor in enumerate(rm_names):
+                rmfaxs[vari].axvline(
+                    x=np.mean(vline_var[designfactors["rm"] == rmfactor]) * 100, color=colours[rmfi], linestyle=":"
+                )
 
         # Add title to with within ANOVA effect in the title
         statsstr = f"F* = {np.round(stat_comparison[var]['ANOVA2onerm'][1].zstar, 2)}"
-        rmfaxs[vari].set_title(f"{vartitles[var]}\n{statsstr}")
+        rmfaxs[vari].set_title(f"{titles[var]}\n{statsstr}")
 
         # Add patches to if significant diffs are found
         for comparison in stat_comparison[var]["posthocs"]["rm"].values():
@@ -391,7 +476,7 @@ def vis_SPM_ANOVA2onerm_within_effect(datadict, designfactors, stat_comparison, 
     plt.tight_layout()
     plt.subplots_adjust(bottom=0.16)
     rmfaxs[-2].legend(
-        rmlabels, loc="lower center", bbox_to_anchor=(0.5, 0), ncol=3, bbox_transform=rmffig.transFigure, frameon=False
+        rm_names, loc="lower center", bbox_to_anchor=(0.5, 0), ncol=3, bbox_transform=rmffig.transFigure, frameon=False
     )
 
     return rmffig

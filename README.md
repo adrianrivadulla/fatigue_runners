@@ -58,6 +58,15 @@ There might be some seaborn, matplotlib or pandas warnings, but they can be igno
 
 Documentation for the different scripts and functions has been generated using Copilot and it can be brief in some cases but hopefully enough to understand what is happening. 
 
+### Repeatability of SPM analysis
+
+SPM analysis randomly shuffles labels and recalculates the test statistic to generate a null distribution, making the results non-deterministic.
+Please expect some variation in the numbers with respect to the ones reported in the paper. The overall interpretation of the results should remain the same, but the exact p-values and cluster sizes may differ slightly between runs.
+Results can become more stable with more permutations, which you can control via the ireations parameter but the more permutations, the longer the analysis will take to run. Indeed, this part explains most of the time taken by the script to run.
+Using a minimum of 1000 iterations is suggested in [this issue](https://github.com/0todd0000/spm1d/issues/63), and this is what we used for the paper.
+
+You can pass a random_seed parameter to the run_SPM_ANOVAonerm.
+
 ## Refactoring and future work
 
 This repo was a bit of a file dump from all the code I used for this study. 

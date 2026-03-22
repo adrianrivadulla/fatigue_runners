@@ -3,13 +3,13 @@ import matplotlib.pyplot as plt
 import numpy as np
 import os
 import pandas as pd
-from research_utils.pipelines import run_demoanthrophys_two_groups_comparisons, run_0D_ANOVA2onerm
+from research_utils.pipelines import run_demoanthrophys_two_groups_comparisons, run_0D_ANOVA2onerm, run_SPM_ANOVA2onerm
 from utils.analysis import interpolate_dict
 from utils.data_processing import prep_mastersheet, prep_phys_data, prep_kinematic_data
 from utils.vis import visualise_gas_data
 
 
-from utils.temp import run_SPM_ANOVA2onerm
+# from utils.temp import run_SPM_ANOVA2onerm
 
 # TODO. Keep adding plot args as kwargs in 0D_ANOVA whatever and SPM_ANOVA
 # TODO. Test demoanthrophys and SPM_ANOVA in clustering. if happy, move SPM_ANOVA to research_utils.pipelines
@@ -132,22 +132,21 @@ for figname, fig in figs.items():
 
 # TODO. You are here, reformat run_SPM... to take kwargs and then try in in clustering. if all good, you're done with this repo
 
-figargs = {
-    "rmlabels": config.seglabels,
-    "rmffigrows": 2,
-    "rmffigcols": 3,
-    "rmfcolours": config.segcolours,
-    "rmfylabels": config.kinematics_ylabels,
-    "grcolours": uniqueclustlabels["colourcode"].tolist(),
-    "group_names": config.clustnames,
-    "between_label": "C",
-    "within_label": "E",
-    "vlinevar": avgesegments["DF"],
-    "vartitles": config.kinematics_titles,
-}
-
-stat_comparison["kinematics"], kinfigs, kinrmfig = run_SPM_ANOVA2onerm(
-    {contvar: avgesegments[contvar] for contvar in config.contvars}, designfactors, figargs
+stat_comparison["kinematics"], kinspmfigs, kinfigs, kinrmfig = run_SPM_ANOVA2onerm(
+    {contvar: avgesegments[contvar] for contvar in config.contvars},
+    designfactors,
+    spm_random_seed=42,
+    titles=config.kinematics_titles,
+    ylabels=config.kinematics_ylabels,
+    group_names=config.clustnames,
+    group_colours=uniqueclustlabels["colourcode"].tolist(),
+    rm_names=config.seglabels,
+    rm_fig_rows=2,
+    rm_fig_cols=3,
+    rm_colours=config.segcolours,
+    between_label="C",
+    within_label="E",
+    vline_var=avgesegments["DF"],
 )
 
 # Save group and interaction effect figures
@@ -159,24 +158,28 @@ for var, fig in kinfigs.items():
 kinrmfig.savefig(os.path.join(config.reportdir, f"{savingkw}_contvars_rm_effect.png"), dpi=300, bbox_inches="tight")
 plt.close(kinrmfig)
 
+# Save spm figures
+for var, fig in kinspmfigs.items():
+    fig.savefig(os.path.join(config.reportdir, f"{savingkw}_{var}.png"), dpi=300, bbox_inches="tight")
+    plt.close(fig)
+
 # # %% 2-way ANOVA SPM for the coordination variability variables
-
-figargs = {
-    "rmlabels": config.seglabels,
-    "rmffigrows": 1,
-    "rmffigcols": 3,
-    "rmfcolours": config.segcolours,
-    "rmfylabels": config.coord_labels,
-    "grcolours": uniqueclustlabels["colourcode"].tolist(),
-    "group_names": config.clustnames,
-    "between_label": "C",
-    "within_label": "E",
-    "vlinevar": avgesegments["DF"],
-    "vartitles": config.coord_titles,
-}
-
-
-stat_comparison["cv"], cvfigs, cvrmfig = run_SPM_ANOVA2onerm(cv, designfactors, figargs)
+stat_comparison["cv"], cvspmfigs, cvfigs, cvrmfig = run_SPM_ANOVA2onerm(
+    cv,
+    designfactors,
+    spm_random_seed=42,
+    titles=config.coord_titles,
+    ylabels=config.coord_ylabels,
+    group_names=config.clustnames,
+    group_colours=uniqueclustlabels["colourcode"].tolist(),
+    rm_names=config.seglabels,
+    rm_fig_rows=1,
+    rm_fig_cols=3,
+    rm_colours=config.segcolours,
+    between_label="C",
+    within_label="E",
+    vline_var=avgesegments["DF"],
+)
 
 for var, fig in cvfigs.items():
     fig.savefig(os.path.join(config.reportdir, f"{savingkw}_{var}_ANOVA2onerm.png"), dpi=300, bbox_inches="tight")
@@ -184,3 +187,10 @@ for var, fig in cvfigs.items():
 
 cvrmfig.savefig(os.path.join(config.reportdir, f"{savingkw}_coordvars_rm_effect.png"), dpi=300, bbox_inches="tight")
 plt.close(cvrmfig)
+
+# Save spm figures
+for var, fig in cvspmfigs.items():
+    fig.savefig(os.path.join(config.reportdir, f"{savingkw}_{var}.png"), dpi=300, bbox_inches="tight")
+    plt.close(fig)
+
+a = 56
