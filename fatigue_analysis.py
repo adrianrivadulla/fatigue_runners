@@ -130,8 +130,6 @@ for figname, fig in figs.items():
 
 # %% 2-way ANOVA SPM for the continuous variables
 
-# TODO. You are here, reformat run_SPM... to take kwargs and then try in in clustering. if all good, you're done with this repo
-
 stat_comparison["kinematics"], kinspmfigs, kinfigs, kinrmfig = run_SPM_ANOVA2onerm(
     {contvar: avgesegments[contvar] for contvar in config.contvars},
     designfactors,
@@ -147,6 +145,7 @@ stat_comparison["kinematics"], kinspmfigs, kinfigs, kinrmfig = run_SPM_ANOVA2one
     between_label="C",
     within_label="E",
     vline_var=avgesegments["DF"],
+    rm_spm_patches="posthocs",
 )
 
 # Save group and interaction effect figures
