@@ -32,7 +32,7 @@ def prep_mastersheet(mastersheetpath, selectedidcs=None):
     for eecol in master.filter(like="EE").columns:
         master[f"{eecol}kg"] = master[eecol] / master["Mass"]
 
-    # Filter master sheet to only include rows where filtercol is in filtervals
+    # Filter master sheet to only include selectedidcs
     if selectedidcs is not None:
         master = master.loc[selectedidcs]
 
