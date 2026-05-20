@@ -109,9 +109,6 @@ def prep_kinematic_data(segments, pts, clustlabels, seglabels, couplings):
 
     for pt in pts:
 
-        # Get indices of pt and segment
-        ptstartsegidcs = np.where((segments['misc']['pt'] == pt) & (segments['misc']['segment'] == 'start'))[0]
-
         # Store every segment data in an easy format for SPM analysis
         for seg in seglabels:
             ptsegidcs = np.where((segments['misc']['pt'] == pt) & (segments['misc']['segment'] == seg))[0]

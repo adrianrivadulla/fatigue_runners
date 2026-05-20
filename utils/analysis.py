@@ -28,6 +28,7 @@ def calculate_coordvar(prox, dist, p=0.95):
         # Get eigenvals
         eigvals, _ = np.linalg.eig(cov)
 
+        # Get area of scaled ellipse
         k = np.sqrt(-2 * np.log(1 - p))
         scaledeig = k * np.sqrt(eigvals)
         area = np.pi * np.prod(scaledeig)
