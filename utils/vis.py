@@ -1,6 +1,6 @@
-import numpy as np
+# %% Imports
+
 import matplotlib.pyplot as plt
-from scipy.interpolate import interp1d
 import spm1d
 
 # %% Functions

@@ -1,21 +1,21 @@
+# %% Imports
+
 import pandas as pd
 import numpy as np
 from utils.analysis import calculate_coordvar
 
 # %% Functions
 
-# TODO. Write proper docstrings
-
 def prep_mastersheet(mastersheetpath, selectedidcs=None):
     """
-    Loads in the master sheet and prepares it for analysis. This includes:
+    Load the master sheet and prepare it for analysis by renaming variables, computing derived fields, and normalising energy expenditure values by mass.
 
     Parameters:
-    mastersheetpath (str): path to the master sheet excel file.
+    mastersheetpath (str): Path to the master sheet Excel file.
+    selectedidcs (array-like, optional): Row indices to keep after loading. Default is None (all rows).
 
     Returns:
-    master (pd.DataFrame): master sheet with VO2max renamed to VO2peakkg for simplicity.
-
+    pd.DataFrame: Prepared master sheet with VO2max renamed to VO2peakkg, Time10K converted to seconds, and EE columns normalised by mass.
     """
 
     # Load mastersheet
@@ -40,7 +40,15 @@ def prep_mastersheet(mastersheetpath, selectedidcs=None):
 
 def prep_phys_data(physdatapath, wantedsignals='all', wantedpts='all'):
     """
+    Load physiological data and filter to the requested signals and participants.
 
+    Parameters:
+    physdatapath (str): Path to the physiological data .npy file. Expected structure: [signal][participant] = data array.
+    wantedsignals (str or list): Signal types to include. 'all' keeps all available signals. Default is 'all'.
+    wantedpts (str or list): Participant IDs to include. 'all' keeps all participants. Default is 'all'.
+
+    Returns:
+    dict: Filtered physiological data with structure [signal][participant] = data array.
     """
 
     # Load physiological data
@@ -68,7 +76,7 @@ def prep_kinematic_data(segments, pts, clustlabels, seglabels, couplings):
     """
     Prepares kinematic data for SPM analysis by calculating the average segment values for each participant.
 
-    Paremeters:
+    Parameters:
     segments (dict): dictionary containing the kinematic data for each participant and segment.
     pts (list): list of participant IDs to include in the analysis.
     clustlabels (pd.DataFrame): dataframe containing the cluster labels for each participant.

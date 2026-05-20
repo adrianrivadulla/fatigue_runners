@@ -6,32 +6,10 @@ jobs:
   lint:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout repo
-        uses: actions/checkout@v4
-
-      # Set up Python
-      - name: Set up Python
-        uses: actions/setup-python@v5
+      - uses: actions/checkout@v4
+      - uses: astral-sh/ruff-action@v3
         with:
-          python-version: '3.8'
-
-      # Upgrade pip and build tools
-      - name: Upgrade pip and build tools
-        run: |
-          python -m pip install --upgrade pip setuptools wheel
-
-      # Install GitHub-hosted dependencies first
-      - name: Install GitHub dependencies
-        run: |
-          pip install git+https://github.com/adrianrivadulla/research-utils.git@main
-
-      # Install the rest of requirements (skip already installed deps)
-      - name: Install other dependencies
-        run: |
-          pip install --no-cache-dir -r requirements.txt --no-deps
-
-      # Run Ruff for linting and formatting checks
-      - name: Run Ruff
-        run: |
-          ruff check .
-          ruff format --check .
+          args: check .
+      - uses: astral-sh/ruff-action@v3
+        with:
+          args: format --check .

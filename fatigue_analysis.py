@@ -162,7 +162,7 @@ for var, fig in kinspmfigs.items():
     fig.savefig(os.path.join(config.reportdir, f"{savingkw}_{var}.png"), dpi=300, bbox_inches="tight")
     plt.close(fig)
 
-# # %% 2-way ANOVA SPM for the coordination variability variables
+# %% 2-way ANOVA SPM for the coordination variability variables
 stat_comparison["cv"], cvspmfigs, cvfigs, cvrmfig = run_SPM_ANOVA2onerm(
     cv,
     designfactors,

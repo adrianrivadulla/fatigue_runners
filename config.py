@@ -1,9 +1,5 @@
-import matplotlib
 import matplotlib.pyplot as plt
 import os
-
-# matplotlib backend
-matplotlib.use("Qt5Agg")
 
 # matplotlib style
 plt.style.use("default")
@@ -16,7 +12,7 @@ projdir = "."
 # Data dir
 datadir = os.path.join(projdir, "data")
 
-# Fatigure report dir
+# Fatigue report dir
 reportdir = os.path.join(projdir, "report")
 
 # Path to fatigue data file
@@ -102,10 +98,10 @@ coord_ylabels = {
 }
 
 omega_labels = {
-    "RTRUNK2PELVIS_VEL": "${\omega$ (°/s) \n< Flex - Ext >",
-    "RHIP_VEL": "${\omega$ (°/s) \n< Ext - Flex >",
-    "RKNEE_VEL": "${\omega$ (°/s) \n< Ext - Flex >",
-    "RANK_VEL": "${\omega$ (°/s) \n< Plantar - Dorsi >",
+    "RTRUNK2PELVIS_VEL": "${\omega}$ (°/s) \n< Flex - Ext >",
+    "RHIP_VEL": "${\omega}$ (°/s) \n< Ext - Flex >",
+    "RKNEE_VEL": "${\omega}$ (°/s) \n< Ext - Flex >",
+    "RANK_VEL": "${\omega}$ (°/s) \n< Plantar - Dorsi >",
 }
 
 # Demographics, anthropometrics and physiological variables and titles
