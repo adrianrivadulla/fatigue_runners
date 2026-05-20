@@ -6,6 +6,7 @@ from utils.analysis import calculate_coordvar
 
 # %% Functions
 
+
 def prep_mastersheet(mastersheetpath, selectedidcs=None):
     """
     Load the master sheet and prepare it for analysis by renaming variables, computing derived fields, and normalising energy expenditure values by mass.
@@ -19,17 +20,17 @@ def prep_mastersheet(mastersheetpath, selectedidcs=None):
     """
 
     # Load mastersheet
-    master = pd.read_excel(mastersheetpath, index_col='Participant', header=1)
+    master = pd.read_excel(mastersheetpath, index_col="Participant", header=1)
 
     # Have VO2max called VO2peakkg
-    master['VO2peakkg'] = master['VO2max']
+    master["VO2peakkg"] = master["VO2max"]
 
     # Get time in seconds
-    master['Time10Ks'] = master['Time10K'].apply(lambda x: x.hour * 3600 + x.minute * 60 + x.second)
+    master["Time10Ks"] = master["Time10K"].apply(lambda x: x.hour * 3600 + x.minute * 60 + x.second)
 
     # Normalise EE values by mass to get EE per kg
-    for eecol in master.filter(like='EE').columns:
-        master[f'{eecol}kg'] = master[eecol] / master['Mass']
+    for eecol in master.filter(like="EE").columns:
+        master[f"{eecol}kg"] = master[eecol] / master["Mass"]
 
     # Filter master sheet to only include rows where filtercol is in filtervals
     if selectedidcs is not None:
@@ -38,7 +39,7 @@ def prep_mastersheet(mastersheetpath, selectedidcs=None):
     return master
 
 
-def prep_phys_data(physdatapath, wantedsignals='all', wantedpts='all'):
+def prep_phys_data(physdatapath, wantedsignals="all", wantedpts="all"):
     """
     Load physiological data and filter to the requested signals and participants.
 
@@ -55,10 +56,10 @@ def prep_phys_data(physdatapath, wantedsignals='all', wantedpts='all'):
     data = np.load(physdatapath, allow_pickle=True).item()
 
     # if wantedsignals is a string and is 'all', set it to all keys in data. Same for wantedpts and data[key].keys()
-    if isinstance(wantedsignals, str) and wantedsignals == 'all':
+    if isinstance(wantedsignals, str) and wantedsignals == "all":
         wantedsignals = list(data.keys())
 
-    if isinstance(wantedpts, str) and wantedpts == 'all':
+    if isinstance(wantedpts, str) and wantedpts == "all":
         wantedpts = data[list(data.keys())[0]].keys()
 
     for key in list(data.keys()):
@@ -90,48 +91,51 @@ def prep_kinematic_data(segments, pts, clustlabels, seglabels, couplings):
     designfactors (dict): dictionary containing the design factors for each participant and segment, including participant IDs, segment labels, and cluster labels.
     """
 
-
     # Preallocate data holders
     rowsn = len(pts) * len(seglabels)
-    designfactors = {'ptids': np.empty(rowsn, dtype=object),
-                     'rm': np.empty(rowsn, dtype=object),
-                     'group': np.empty(rowsn, dtype=int)}
-    cv = {f'{coupling[0]}__{coupling[1]}': np.ones((rowsn, segments['vars'][coupling[0]]['linreg'].shape[1])) * np.nan for coupling in couplings}
+    designfactors = {
+        "ptids": np.empty(rowsn, dtype=object),
+        "rm": np.empty(rowsn, dtype=object),
+        "group": np.empty(rowsn, dtype=int),
+    }
+    cv = {
+        f"{coupling[0]}__{coupling[1]}": np.ones((rowsn, segments["vars"][coupling[0]]["linreg"].shape[1])) * np.nan
+        for coupling in couplings
+    }
 
     avgesegments = {}
-    for kinvar in segments['vars'].keys():
-        if isinstance(segments['vars'][kinvar], np.ndarray):
+    for kinvar in segments["vars"].keys():
+        if isinstance(segments["vars"][kinvar], np.ndarray):
             avgesegments[kinvar] = np.ones((rowsn)) * np.nan
         else:
-            avgesegments[kinvar] = np.ones((rowsn, segments['vars'][kinvar]['linreg'].shape[1])) * np.nan
+            avgesegments[kinvar] = np.ones((rowsn, segments["vars"][kinvar]["linreg"].shape[1])) * np.nan
 
     rowi = 0
 
     for pt in pts:
-
         # Store every segment data in an easy format for SPM analysis
         for seg in seglabels:
-            ptsegidcs = np.where((segments['misc']['pt'] == pt) & (segments['misc']['segment'] == seg))[0]
+            ptsegidcs = np.where((segments["misc"]["pt"] == pt) & (segments["misc"]["segment"] == seg))[0]
 
-            for kinvar in segments['vars'].keys():
-                if isinstance(segments['vars'][kinvar], np.ndarray):
-                    avgesegments[kinvar][rowi] = np.mean(segments['vars'][kinvar][ptsegidcs], axis=0)
-                elif isinstance(segments['vars'][kinvar], dict):
-                    avgesegments[kinvar][rowi, :] = np.mean(segments['vars'][kinvar]['linreg'][ptsegidcs, :], axis=0)
+            for kinvar in segments["vars"].keys():
+                if isinstance(segments["vars"][kinvar], np.ndarray):
+                    avgesegments[kinvar][rowi] = np.mean(segments["vars"][kinvar][ptsegidcs], axis=0)
+                elif isinstance(segments["vars"][kinvar], dict):
+                    avgesegments[kinvar][rowi, :] = np.mean(segments["vars"][kinvar]["linreg"][ptsegidcs, :], axis=0)
 
             # Calculate coordination variability
             for coupling in couplings:
-                couplingname = f'{coupling[0]}__{coupling[1]}'
-                prox = segments['vars'][coupling[0]]['linreg'][ptsegidcs, :]
-                dist = segments['vars'][coupling[1]]['linreg'][ptsegidcs, :]
+                couplingname = f"{coupling[0]}__{coupling[1]}"
+                prox = segments["vars"][coupling[0]]["linreg"][ptsegidcs, :]
+                dist = segments["vars"][coupling[1]]["linreg"][ptsegidcs, :]
                 cv[couplingname][rowi, :] = calculate_coordvar(prox, dist)
 
             # Store segment label
-            designfactors['rm'][rowi] = seg
+            designfactors["rm"][rowi] = seg
 
             # Store pt and clust
-            designfactors['ptids'][rowi] = pt
-            designfactors['group'][rowi] = clustlabels.loc[pt]['clustlabel']
+            designfactors["ptids"][rowi] = pt
+            designfactors["group"][rowi] = clustlabels.loc[pt]["clustlabel"]
 
             # add row
             rowi += 1

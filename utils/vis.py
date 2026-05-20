@@ -5,6 +5,7 @@ import spm1d
 
 # %% Functions
 
+
 def visualise_gas_data(data, wantedvars, titles, ylabels):
     """
     Visualise physiological data.
@@ -26,7 +27,7 @@ def visualise_gas_data(data, wantedvars, titles, ylabels):
     for vari, var in enumerate(wantedvars):
         spm1d.plot.plot_mean_sd(data[var], ax=axs[vari])
         axs[vari].set_title(titles[var])
-        axs[vari].set_xlabel('Time (%)', fontsize=10)
+        axs[vari].set_xlabel("Time (%)", fontsize=10)
         axs[vari].set_ylabel(ylabels[var])
 
     plt.tight_layout()
