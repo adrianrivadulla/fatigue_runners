@@ -128,8 +128,7 @@ for figname, fig in figs.items():
     fig.savefig(os.path.join(config.reportdir, f"{savingkw}_{figname}.png"), dpi=300, bbox_inches="tight")
     plt.close(fig)
 
-# %% 2-way ANOVA SPM for the continuous variables
-
+# 2-way ANOVA SPM for the continuous variables
 stat_comparison["kinematics"], kinspmfigs, kinfigs, kinrmfig = run_SPM_ANOVA2onerm(
     {contvar: avgesegments[contvar] for contvar in config.contvars},
     designfactors,
@@ -162,7 +161,7 @@ for var, fig in kinspmfigs.items():
     fig.savefig(os.path.join(config.reportdir, f"{savingkw}_{var}.png"), dpi=300, bbox_inches="tight")
     plt.close(fig)
 
-# %% 2-way ANOVA SPM for the coordination variability variables
+# 2-way ANOVA SPM for the coordination variability variables
 stat_comparison["cv"], cvspmfigs, cvfigs, cvrmfig = run_SPM_ANOVA2onerm(
     cv,
     designfactors,
@@ -187,7 +186,7 @@ for var, fig in cvfigs.items():
 cvrmfig.savefig(os.path.join(config.reportdir, f"{savingkw}_coordvars_rm_effect.png"), dpi=300, bbox_inches="tight")
 plt.close(cvrmfig)
 
-# Save spm figures
+# Save coordvar spm figures
 for var, fig in cvspmfigs.items():
     fig.savefig(os.path.join(config.reportdir, f"{savingkw}_{var}.png"), dpi=300, bbox_inches="tight")
     plt.close(fig)
